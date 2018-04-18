@@ -29,7 +29,9 @@ class UserForm(forms.ModelForm):
             'invalid' : "Email is invalid"
         }
         self.fields['password'].error_messages = {
-            'required': "Password can't be blank"
+            'required'  : "Password can't be blank",
+            'min_length': "Password is too short (minimum is %(limit_value)s characters)",
+            'max_length': "Password is too long (maximum is %(limit_value)s characters)"
         }
 
     def add_prefix(self, field_name):
