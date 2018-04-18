@@ -1,13 +1,33 @@
 {% extends "base.html" %}
-
+{% load static %}
 {% block content %}
-    <h2>Players</h2>
+<h2>Players</h2>
 <ul class="rounded_shoji userlist">
+  {% for user in users %}
+    <li data-player-id="{{ user.id }}">
+      <div class="rank">{{ user.rank }}</div>
+      <a href="players/{{ user.login }}" class="avatar">
+        {% if user.avatar_pic %}
+        <img src="{{user.avatar_pic}}" />
+        {% else %}
+        <img alt="Nopic" src="{% static "/nopic.jpg" %}" />
+        {% endif %}
+      </a>
+      <div class="signup_date">
+        Member since {{ user.created_at|date:"Y-m-d" }}
+      </div>
+      <div class="username">
+        <a href="players/{{ user.login }}">{{ user.login }}</a>
+      </div>
+      <div style="clear:both"></div>
+    </li>
+  {% endfor %}
+
     <li data-player-id="6959">
       <div class="rank">
         ?
       </div>
-      <a href="http://goshrine.com/players/Welvang" class="avatar"><img alt="Warsow" src="/photos/6959/thumb/Warsow.png" /></a>
+      <a href="http://goshrine.com/players/Welvang" class="avatar"><img src="/photos/6959/thumb/Warsow.png" /></a>
       <div class="signup_date">
         Member since 2011-07-07
       </div>

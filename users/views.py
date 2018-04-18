@@ -9,6 +9,7 @@ from django.core.validators import validate_email
 from django.core.exceptions import ValidationError
 from django.contrib import messages
 
+from .models import User
 from .forms import UserForm
 
 def validate_user_creation(request):
@@ -39,8 +40,11 @@ def index(request):
             context = { 'form': form, 'errors': errors }
             return render(request, 'users/sign_up.html', context)
 
-    form.save()
-    return render(request, 'users/index.html', {})
+        # Successful post, so we store and redirect.
+        form.save()
+
+    users = User.objects.all()
+    return render(request, 'users/index.html', { 'users': users })
 
 def sign_up(request):
     return render(request, 'users/sign_up.html', {'form': UserForm()})

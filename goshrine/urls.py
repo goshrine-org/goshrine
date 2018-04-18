@@ -19,6 +19,7 @@ from django.shortcuts import render
 
 urlpatterns = [
     path('admin/', admin.site.urls),
+    path('login',  include('login.urls')),
     path('users', include('users.urls')),
     path('application.css', lambda r: render(r, 'application.css')),
 ]
