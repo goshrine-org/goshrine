@@ -1,0 +1,62 @@
+{% load static %}
+<html xmlns="http://www.w3.org/1999/xhtml" xml:lang="en" lang="en">
+<head>
+  <link href='http://fonts.googleapis.com/css?family=Marcellus|Open+Sans:300,400' rel='stylesheet' type='text/css'>
+  <link rel="icon" type="image/png" href="{% static "/favicon.png" %}" />
+  <link rel="apple-touch-icon" href="{% static "/torii_small.png" %}" /> 
+  <link href="https://plus.google.com/114343939316877293208" rel="publisher" />
+  <meta http-equiv="Content-Type" content="text/html;charset=utf-8" />
+  <title>GoShrine: Play Go online</title>
+  <meta name="Description" content="Play go online and chat with other players. Free and firewall friendly." />
+  <meta name="google-site-verification" content="1wLxnL2H-aotGNqlt1KNUoMBzIu6PmOgtn89kXssdxs" />
+  <meta property="fb:admins" content="1300120377" />
+  <meta property="og:image" content="{% block og_image %}{{ request.scheme }}://{{ request.get_host }}{% static "torii_small.png" %}{% endblock %}"/>
+  <meta content="authenticity_token" name="csrf-param" />
+  <meta content="{{csrf_token}}" name="csrf-token" />
+  <link href="/application.css" media="all" rel="stylesheet" type="text/css" />
+  <script type="text/javascript" src="https://apis.google.com/js/plusone.js"></script>		
+  <script src="{% static "application-5acfe752c4b1f2b076372bfb309aed30.js" %}" type="text/javascript"></script>
+
+  <script type="text/javascript">
+    $(document).ready(function(){
+      $("#chimeSound").jPlayer({
+        ready: function() {
+          $(this).jPlayer("setMedia", {
+            mp3: "{% static "/sound/chime.mp3" %}",
+            oga: "{% static "/sound/chime.oga" %}"
+          });
+        },
+        supplied: "mp3,oga",
+		solution: "html,flash",
+        swfPath: "{% static "/sound" %}"
+      });
+      $("#clickSound").jPlayer({
+        ready: function() {
+          $(this).jPlayer("setMedia", {
+            wav: "{% static "/sound/click.wav" %}",
+            mp3: "{% static "/sound/click.mp3" %}",
+            oga: "{% static "/sound/click.oga" %}"
+          });
+        },
+        supplied: "wav,mp3,oga",
+		solution: "html,flash",
+        swfPath: "{% static "/sound" %}"
+      });
+    });    
+  </script>
+</head>
+<body>
+  {% include "header.html" %}
+
+  <div id="page_content">
+    <div class="flashes"></div>
+    <div id="temp_messages"></div>
+    {% block content %}{% endblock %}
+  </div>
+    
+  <div id="match_proposal_dialog"> </div>
+</div>
+
+{% include "footer.html" %}
+
+</body>
