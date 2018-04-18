@@ -38,6 +38,16 @@ class UserForm(forms.ModelForm):
         field_name = self.name_map.get(field_name, field_name)
         return super(UserForm, self).add_prefix(field_name)
 
+    def clean(self):
+        cleaned_data = super().clean()
+        password     = cleaned_data.get('password')
+        confirmation = cleaned_data.get('user_password_confirmation')
+
+        if password != confirmation:
+            raise forms.ValidationError("Password doesn't match confirmation", code='invalid')
+
+        return cleaned_data
+
     class Meta:
         model   = User
         fields  = ['username', 'email', 'password']

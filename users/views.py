@@ -1,5 +1,6 @@
 import string
 import re
+import itertools
 
 from django.shortcuts import render
 from django.http import HttpResponse
@@ -34,8 +35,7 @@ def index(request):
         # Flatten the error lists per field, as this is what goshrine.com does.
         errors = []
         if not form.is_valid():
-            for field in form.fields:
-                errors += (form[field].errors)
+            errors = itertools.chain.from_iterable(form.errors.values())
 
         template = loader.get_template('users/sign_up.html')
         return HttpResponse(template.render({'form': form, 'errors': errors}, request))

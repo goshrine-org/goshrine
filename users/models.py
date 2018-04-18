@@ -1,16 +1,18 @@
 from django.db import models
-from django.core.validators import RegexValidator, MinLengthValidator, EmailValidator
+from django.core.validators import RegexValidator, MinLengthValidator
 
-# models.CharField does not have a 'min_length' parameters, so we use
-# a custom validator.
-validate_username_length = MinLengthValidator(3)
-validate_username        = RegexValidator("^[A-Za-z0-9_][A-Za-z0-9_.-]*$")
-username_validators      = [validate_username_length, validate_username]
+class UsernameField(models.CharField):
+    default_validators = [
+        MinLengthValidator(3),
+        RegexValidator("^[A-Za-z0-9_][A-Za-z0-9_.-]*$")
+    ]
 
-validate_password_length = MinLengthValidator(6)
-password_validators      = [validate_password_length]
+class PasswordField(models.CharField):
+    default_validators = [
+        MinLengthValidator(6)
+    ]
 
 class User(models.Model):
-    username = models.CharField(max_length=28, validators=username_validators)
+    username = UsernameField(max_length=28)
     email    = models.EmailField(max_length=32)
-    password = models.CharField(max_length=20, validators=password_validators)
+    password = PasswordField(max_length=20)
