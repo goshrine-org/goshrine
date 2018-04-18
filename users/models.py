@@ -1,4 +1,5 @@
 from django.db import models
+from django.utils import timezone
 from django.core.validators import RegexValidator, MinLengthValidator
 
 class UsernameField(models.CharField):
@@ -13,6 +14,9 @@ class PasswordField(models.CharField):
     ]
 
 class User(models.Model):
-    username = UsernameField(max_length=28)
-    email    = models.EmailField(max_length=32)
-    password = PasswordField(max_length=20)
+    login      = UsernameField(max_length=28, unique=True)
+    email      = models.EmailField(max_length=32, unique=True)
+    password   = PasswordField(max_length=20)
+    rank       = models.CharField(max_length=4, null=True)
+    avatar_pic = models.CharField(max_length=256, null=True)
+    created_at = models.DateTimeField(default=timezone.now)

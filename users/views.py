@@ -35,15 +35,12 @@ def index(request):
         # Flatten the error lists per field, as this is what goshrine.com does.
         errors = []
         if not form.is_valid():
-            errors = itertools.chain.from_iterable(form.errors.values())
+            errors  = itertools.chain.from_iterable(form.errors.values())
+            context = { 'form': form, 'errors': errors }
+            return render(request, 'users/sign_up.html', context)
 
-        template = loader.get_template('users/sign_up.html')
-        return HttpResponse(template.render({'form': form, 'errors': errors}, request))
-
-    template = loader.get_template('users/index.html')
-    return HttpResponse(template.render({}, request))
+    form.save()
+    return render(request, 'users/index.html', {})
 
 def sign_up(request):
-    form     = UserForm()
-    template = loader.get_template('users/sign_up.html')
-    return HttpResponse(template.render({'form': form}, request))
+    return render(request, 'users/sign_up.html', {'form': UserForm()})

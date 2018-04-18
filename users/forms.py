@@ -3,7 +3,7 @@ from .models import User
 
 class UserForm(forms.ModelForm):
     name_map = {
-        'username'                  : 'user[login]',
+        'login'                     : 'user[login]',
         'email'                     : 'user[email]',
         'password'                  : 'user[password]',
         'user_password_confirmation': 'user[password_confirmation]'
@@ -18,13 +18,15 @@ class UserForm(forms.ModelForm):
         super(UserForm, self).__init__(*args, **kwargs)
         self.label_suffix = ''
 
-        self.fields['username'].error_messages = {
+        self.fields['login'].error_messages = {
+            'unique'    : "Login has already been taken",
             'required'  : "Login can't be blank",
             'max_length': "Login is too long (maximum is %(limit_value)s characters)",
             'min_length': "Login is too short (minimum is %(limit_value)s characters)",
             'invalid'   : "Login use only letters, numbers, and .-_ please."
         }
         self.fields['email'].error_messages    = {
+            'unique'  : "Email has already been taken",
             'required': "Email needed for registration.",
             'invalid' : "Email is invalid"
         }
@@ -50,9 +52,9 @@ class UserForm(forms.ModelForm):
 
     class Meta:
         model   = User
-        fields  = ['username', 'email', 'password']
+        fields  = ['login', 'email', 'password']
         widgets = {
-            'username': forms.TextInput(attrs={'id': 'user_login', 'size': 30}),
+            'login'   : forms.TextInput(attrs={'id': 'user_login', 'size': 30}),
             'email'   : forms.EmailInput(attrs={'id': 'user_email', 'size':30}),
             'password': forms.PasswordInput(attrs={'id': 'user_password', 'size':30})
         }
