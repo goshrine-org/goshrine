@@ -26,9 +26,6 @@ def validate_user_creation(request):
 
     return errors
 
-from django.views.decorators.csrf import csrf_exempt
-
-@csrf_exempt
 def index(request):
     if request.method == 'POST':
         form = UserForm(request.POST)
