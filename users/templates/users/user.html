@@ -1,0 +1,79 @@
+{% extends "base.html" %}
+{% load static %}
+{% block content %}
+<div class="profile">
+  <div class="profile_left_column">
+    <a href="/photos/9154/original/kairi.kingdom.jpg" class="profile_pic">
+      <img alt="Kairi.kingdom" src="/photos/9154/small/kairi.kingdom.jpg" />
+    </a>
+    <a title="{{ target_user.login }}" rel="contact" class="url" href="/users/{{ target_user.id }}">
+      <p class="user_name">{{ target_user.login }}</p>
+    </a>
+
+    <div class="rank_graph_frame main_box">
+      <h2 class="main_category">Rank Graph</h2>
+      <div id="rank_graph"></div>
+
+      <script type="text/javascript">
+        $(function () {
+          var d1 = [];
+          for (var i = 0; i < 14; i += 0.5) {
+            d1.push([i, Math.sin(i)]);
+          }
+    
+          function ratingToRank(rating) {
+            if (rating < 30) {
+              return Math.ceil(30 - rating) + 'k';
+            } else {
+              return Math.ceil((rating - 30) + 1) + 'd'
+            }
+          }
+
+          $.plot($("#rank_graph"), [ [[1457848800000,22.2011786999888],[1458190800000,22.27718293617999],[1481868000000,null],[1481954400000,null],[1490331600000,null]] ], 
+          {xaxis: {mode: "time"}, 
+           yaxis: {tickFormatter: ratingToRank,
+                   minTickSize: 1}});
+        });
+      </script>
+    </div>
+  </div>
+
+  <div class="profile_right_column">
+    <div class="profile_details main_box">
+      <h2 class="main_category">User Info</h2>
+      <table class="user_info">
+        <tr>
+          <th class="profile_key">Bio:</th>
+          <td>{{ target_user.bio }}</td>
+        </tr>
+        <tr>
+          <th class="profile_key">Rank:</th>
+          <td>{{ target_user.rank }}</td>
+        </tr>
+        <tr>
+          <th class="profile_key">Wins/Losses:</th>
+          <td>54/16</td>
+        </tr>
+      </table>
+    </div>
+
+    <div class="player_game_list main_box">
+      <h2 class="main_category">Recent Games</h2>
+      <ul class="game_list">
+        <ul class="game_summary finished" id="game_f2486aa7">
+          <div class="game_summary_left">
+            <a href="http://goshrine.com/g/f2486aa7" target="_blank">
+              <div class="white_player winner">Kairi (?)</div>
+              <div class="black_player">oxlade (?)</div>
+            </a>
+          </div>
+          <div class="game_summary_right">
+            <div class="result">W+14.5</div>
+            <div class="board_size">19x19</div>
+          </div>
+        </ul>
+      </ul>
+    </div>
+  </div>
+</div>
+{% endblock %}

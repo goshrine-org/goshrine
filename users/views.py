@@ -14,7 +14,7 @@ def index(request):
         errors = []
         if not form.is_valid():
             errors  = itertools.chain.from_iterable(form.errors.values())
-            context = { 'form': form, 'errors': errors }
+            context = {'form': form, 'errors': errors}
             return render(request, 'users/sign_up.html', context)
 
         # Successful post, so we store, login, and redirect.
@@ -59,3 +59,11 @@ def sign_in(request):
             return render(request, 'users/sign_in.html', context)
 
     return render(request, 'users/sign_in.html', {'form': LoginForm()})
+
+def user(request, user_id):
+    try:
+        target_user = User.objects.get(pk=user_id)
+    except User.DoesNotExist:
+       raise Http404()
+
+    return render(request, 'users/user.html', {'target_user': target_user})
