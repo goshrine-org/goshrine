@@ -20,7 +20,7 @@ from home import views as home_views
 
 urlpatterns = [
     re_path('^/?$', home_views.index),
-    path('admin/',  admin.site.urls),
+    path('admin',   admin.site.urls),
     path('home',    include('home.urls')),
     path('login',   include('login.urls')),
     path('rooms',   include('rooms.urls')),

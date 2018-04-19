@@ -10,11 +10,6 @@ class UsernameField(models.CharField):
         RegexValidator("^[A-Za-z0-9_][A-Za-z0-9_.-]*$")
     ]
 
-class PasswordField(models.CharField):
-    default_validators = [
-        MinLengthValidator(6)
-    ]
-
 class UserManager(BaseUserManager):
     def create_user(self, login, email, password, **extra_fields):
         user = self.model(login=login, email=email, **extra_fields)
@@ -34,9 +29,10 @@ class User(AbstractBaseUser):
     USERNAME_FIELD     = 'login'
     REQUIRED_FIELDS    = ['email']
 
+    # XXX: TODO https://stackoverflow.com/questions/26309431/django-admin-can-i-define-fields-order
+
     login              = UsernameField(max_length=28, unique=True)
     email              = models.EmailField(max_length=255, unique=True)
-    password           = PasswordField(max_length=20)
     rank               = models.CharField(max_length=5, default='?')
     avatar_pic         = models.CharField(max_length=256, blank=True, default='')
     created_at         = models.DateTimeField(default=timezone.now)
