@@ -1,7 +1,9 @@
 import itertools
 from django.shortcuts import render
 from .forms  import UserForm, LoginForm
-from .models import User
+from django.contrib.auth import get_user_model
+
+User = get_user_model()
 
 def index(request):
     if request.method == 'POST':
@@ -15,7 +17,10 @@ def index(request):
             return render(request, 'users/sign_up.html', context)
 
         # Successful post, so we store and redirect.
-        form.save()
+        login    = form.cleaned_data['login']
+        email    = form.cleaned_data['email']
+        password = form.cleaned_data['password']
+        user = User.objects.create_user(login, email, password)
 
     users = User.objects.all()
     return render(request, 'users/index.html', { 'users': users })

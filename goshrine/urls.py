@@ -16,14 +16,14 @@ Including another URLconf
 from django.contrib import admin
 from django.urls import path, re_path, include
 from django.shortcuts import render
-from home import views
+from home import views as home_views
 
 urlpatterns = [
-    re_path('^/?$', views.index),
-    path('admin/', admin.site.urls),
-    path('home',   include('home.urls')),
-    path('login',  include('login.urls')),
-    path('rooms',  include('rooms.urls')),
-    path('users',  include('users.urls')),
+    re_path('^/?$', home_views.index),
+    path('admin/',  admin.site.urls),
+    path('home',    include('home.urls')),
+    path('login',   include('login.urls')),
+    path('rooms',   include('rooms.urls')),
+    path('users',   include('users.urls')),
     path('application.css', lambda r: render(r, 'application.css')),
 ]
