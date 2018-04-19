@@ -26,13 +26,15 @@ SECRET_KEY = '[redacted]'
 DEBUG         = True
 APPEND_SLASH  = False
 
-ALLOWED_HOSTS = []
+ALLOWED_HOSTS = ["127.0.0.1"]
 
 # Application definition
 
 INSTALLED_APPS = [
-    'users.apps.UsersConfig',
+    'home.apps.HomeConfig',
     'login.apps.LoginConfig',
+    'rooms.apps.RoomsConfig',
+    'users.apps.UsersConfig',
     'django.contrib.admin',
     'django.contrib.auth',
     'django.contrib.contenttypes',

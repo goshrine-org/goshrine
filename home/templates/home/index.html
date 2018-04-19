@@ -1,0 +1,92 @@
+{% extends "base.html" %}
+{% load static %}
+{% block content %}
+<script type="text/javascript">
+  var room;
+  var currentUser = "guest";
+
+  $(document).ready(function(){
+    goshrine.init({user:currentUser});
+    room = new goshrine.Room({"id":1,"name":"Welcome","owner_id":1,"created_at":"2010-11-06T04:17:02Z","updated_at":"2010-11-06T04:17:02Z"});
+  });
+</script>
+
+<script type="text/x-jqote-template" id="member_template">
+<![CDATA[
+  <: user = this.user; :>
+  <: currentUser = this.currentUser; :>
+  <: room = this.room; :>
+  <: blocked = this.blocked; :>
+  <: blocker = this.blocker; :>
+  <li class="online_player" data-player-id="<:= user.id :>" id="room_member_<:= user.id :>">
+    <a href="/players/<:= user.login :>" class="avatar">
+      <: if ( user.avatar_pic == null) { :>
+        <img class="avatar" src="/assets/nopic.jpg" />
+      <: } else { :>
+        <img class="avatar" src="<:= user.avatar_pic :>" />
+      <: } :>
+      <: if ( user.user_type == 'bot' ) { :>
+	      <img class="status_icon" src="/assets/robot_badge.png" />	      
+	    <: } :> 
+    </a>
+    <div><:= user.login :> (<:= user.rank :>)
+      <: if(currentUser != 'guest' && parseInt(user.id) != currentUser.id && user.available && !blocked && !blocker) { :>
+      <br/>
+          <a href="/match/propose?challenged_player_id=<:= user.id :>&room_id=<:= room.room_id :>" data-id="<:= user.id :>">Propose game.</a>
+      </div>
+    <: } :>
+  </li>
+]]>
+</script>
+
+<div class="layout">
+  <div id="notifications"></div>
+  <div class="online_players main_box" style="float: left;">
+    <h2 class="main_category">Players</h2>
+    <ul id="member_list"></ul>
+  </div>
+
+  <div style="width: 362px; margin: 0; float: left">
+    <h2>Welcome</h2>
+      <p style="margin:25px;font-style:italic;">
+        As a guest, you can view other games in progress, but cannot start your own games.  <a href="http://goshrine.com/login" class="login">Login</a> to play with other people.
+      </p>
+    <div class="room_chat" id="chat_output"></div>
+  </div>
+  
+  <div class="recent_games main_box">
+    <h2 class="main_category">Games</h2>
+    <ul id="room_game_list" class="game_list">
+      <ul class="game_summary finished" id="game_967a7ce0">
+        <div class="game_summary_left">
+          <a href="http://goshrine.com/g/967a7ce0" target="_blank">
+            <div class="white_player">beep (12k)</div>
+            <div class="black_player winner">Peanut (?)</div>
+          </a>
+        </div>
+
+        <div class="game_summary_right">
+          <div class="result">B+T</div>
+          <div class="board_size">9x9</div>
+        </div>
+      </ul>
+
+      <ul class="game_summary finished" id="game_ac48d1d8">
+        <div class="game_summary_left">
+          <a href="http://goshrine.com/g/ac48d1d8" target="_blank">
+            <div class="white_player winner">Gantz (12k)</div>
+            <div class="black_player">candyopulous (18k)</div>
+          </a>
+        </div>
+        <div class="game_summary_right">
+          <div class="result">W+T</div>
+          <div class="board_size">19x19</div>
+        </div>
+      </ul>
+    </ul>
+  </div>
+</div>
+
+<div style="display: none" id="board"></div>
+
+{% endblock %}
