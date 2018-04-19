@@ -1,7 +1,8 @@
+from django.shortcuts import render, redirect
+from django.contrib.auth import get_user_model, login, authenticate
+from common import flash
+from .forms import UserForm, LoginForm
 import itertools
-from django.shortcuts import render
-from .forms  import UserForm, LoginForm
-from django.contrib.auth import get_user_model, login
 
 User = get_user_model()
 
@@ -38,10 +39,23 @@ def sign_in(request):
         errors = []
         if not form.is_valid():
             errors  = itertools.chain.from_iterable(form.errors.values())
-            context = { 'form': form, 'errors': errors }
+            context = {'form': form, 'errors': errors}
             return render(request, 'users/sign_in.html', context)
 
-        print("XXX: handle auth")
-        print(form)
+        username = form.cleaned_data['login']
+        password = form.cleaned_data['password']
+        user     = authenticate(username=username, password=password)
+
+        if user is not None:
+            login(request, user)
+            msg     = 'Signed in successfully.'
+            flashes = [{'color': 'green', 'msg': msg, 'bold': False}]
+            flash.flashes_set(request, flashes)
+            return redirect('/')
+        else:
+            msg     = 'Invalid email or password.'
+            flashes = [{'color': 'red', 'msg': msg, 'bold': True}]
+            context = {'form': form, 'flashes': flashes}
+            return render(request, 'users/sign_in.html', context)
 
     return render(request, 'users/sign_in.html', {'form': LoginForm()})

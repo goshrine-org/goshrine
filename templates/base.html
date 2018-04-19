@@ -52,7 +52,13 @@
     <div class="flashes">
     {% for flash in flashes %}
       <p style="color: {{ flash.color }};">
-        <b> {{ flash.msg }}</b>
+        {% if flash.bold %}
+        <b>
+        {% endif %}
+        {{ flash.msg }}
+        {% if flash.bold %}
+        </b>
+        {% endif %}
       </p>
     {% endfor %}
     </div>

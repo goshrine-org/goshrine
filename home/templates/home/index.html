@@ -48,10 +48,15 @@
 
   <div style="width: 362px; margin: 0; float: left">
     <h2>Welcome</h2>
-      <p style="margin:25px;font-style:italic;">
-        As a guest, you can view other games in progress, but cannot start your own games.  <a href="http://goshrine.com/login" class="login">Login</a> to play with other people.
-      </p>
+    {% if not user.is_authenticated %}
+    <p style="margin:25px;font-style:italic;">
+      As a guest, you can view other games in progress, but cannot start your own games.  <a href="/login" class="login">Login</a> to play with other people.
+    </p>
+    {% endif %}
     <div class="room_chat" id="chat_output"></div>
+    {% if user.is_authenticated %}
+    <input type="text" id="room_chat_input" placeholder="Type here to chat..." class="room_chat_input" onkeydown="if(event.keyCode == 13) {room.sendChatMsg();}" name="chat_input" />
+    {% endif %}
   </div>
   
   <div class="recent_games main_box">
