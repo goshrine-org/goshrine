@@ -1,30 +1,7 @@
-import string
-import re
 import itertools
-
 from django.shortcuts import render
-from django.http import HttpResponse
-from django.template import loader
-from django.core.validators import validate_email
-from django.core.exceptions import ValidationError
-from django.contrib import messages
-
+from .forms  import UserForm, LoginForm
 from .models import User
-from .forms import UserForm
-
-def validate_user_creation(request):
-    errors = []
-
-    try:
-        validate_email(email)
-    except ValidationError:
-        errors.append("Email is invalid")
-
-    confirmation = request.POST.get('user[password_confirmation]', None)
-    if password != confirmation:
-        errors.append("Password doesn't match confirmation")
-
-    return errors
 
 def index(request):
     if request.method == 'POST':
@@ -45,3 +22,19 @@ def index(request):
 
 def sign_up(request):
     return render(request, 'users/sign_up.html', {'form': UserForm()})
+
+def sign_in(request):
+    if request.method == 'POST':
+        form = LoginForm(request.POST)
+
+        # Flatten the error lists per field, as this is what goshrine.com does.
+        errors = []
+        if not form.is_valid():
+            errors  = itertools.chain.from_iterable(form.errors.values())
+            context = { 'form': form, 'errors': errors }
+            return render(request, 'users/sign_in.html', context)
+
+        print("XXX: handle auth")
+        print(form)
+
+    return render(request, 'users/sign_in.html', {'form': LoginForm()})
