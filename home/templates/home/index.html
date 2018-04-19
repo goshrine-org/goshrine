@@ -20,13 +20,13 @@
   <: blocker = this.blocker; :>
   <li class="online_player" data-player-id="<:= user.id :>" id="room_member_<:= user.id :>">
     <a href="/players/<:= user.login :>" class="avatar">
-      <: if ( user.avatar_pic == null) { :>
-        <img class="avatar" src="/assets/nopic.jpg" />
+      <: if ( !user.avatar_pic || 0 === user.avatar_pic.length ) { :>
+        <img class="avatar" src="{% static "nopic.jpg" %}" />
       <: } else { :>
         <img class="avatar" src="<:= user.avatar_pic :>" />
       <: } :>
       <: if ( user.user_type == 'bot' ) { :>
-	      <img class="status_icon" src="/assets/robot_badge.png" />	      
+	      <img class="status_icon" src="{% static "robot_badge.png" %}" />
 	    <: } :> 
     </a>
     <div><:= user.login :> (<:= user.rank :>)

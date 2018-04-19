@@ -4,5 +4,6 @@ from . import views
 app_name = 'rooms'
 urlpatterns = [
     re_path('^/?$', views.index, name='rooms'),
-    path('/messages/<int:room_id>', views.messages)
+    path('/members/<int:room_id>', views.members, name='rooms.members'),
+    path('/messages/<int:room_id>', views.messages, name='rooms.messages'),
 ]

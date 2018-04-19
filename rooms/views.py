@@ -7,15 +7,33 @@ import json
 def index(request):
     return render(request, 'rooms/index.html', {})
 
-def messages(request, room_id):
+def members(request, room_id):
     try:
-        Room.objects.get(pk=room_id)
+        room = Room.objects.get(pk=room_id)
     except Room.DoesNotExist:
        raise Http404()
 
-    messages = Message.objects.filter(room__pk=room_id)
-    messages = messages.order_by('-created_at')
+    json_messages = []
+    for user in room.users.all():
+        msg = {}
+        msg['id']         = user.id
+        msg['login']      = user.login
+        msg['rank']       = user.rank
+        msg['avatar_pic'] = user.avatar_pic
+        msg['user_type']  = ''
+        msg['available']  = user.available
+        json_messages.append(msg)
 
+    params = { 'separators': (',', ':') }
+    return JsonResponse(json_messages, safe=False, json_dumps_params=params)
+
+def messages(request, room_id):
+    try:
+        room = Room.objects.get(pk=room_id)
+    except Room.DoesNotExist:
+       raise Http404()
+
+    messages      = room.messages.all().order_by('created_at')
     json_messages = []
     for message in messages:
         # XXX: we assume the timezone is UTC here.  This is to remain
