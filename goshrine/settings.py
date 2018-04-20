@@ -31,6 +31,7 @@ ALLOWED_HOSTS = ["127.0.0.1"]
 # Application definition
 
 INSTALLED_APPS = [
+    'events.apps.EventsConfig',
     'home.apps.HomeConfig',
     'login.apps.LoginConfig',
     'rooms.apps.RoomsConfig',
@@ -41,7 +42,8 @@ INSTALLED_APPS = [
     'django.contrib.sessions',
     'django.contrib.messages',
     'django.contrib.staticfiles',
-    'django_extensions'
+    'django_extensions',
+    'channels'
 ]
 
 MIDDLEWARE = [
@@ -72,8 +74,8 @@ TEMPLATES = [
     },
 ]
 
+ASGI_APPLICATION = "goshrine.routing.application"
 WSGI_APPLICATION = 'goshrine.wsgi.application'
-
 
 # Database
 # https://docs.djangoproject.com/en/2.0/ref/settings/#databases

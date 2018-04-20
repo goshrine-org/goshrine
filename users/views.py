@@ -67,3 +67,6 @@ def user(request, user_id):
        raise Http404()
 
     return render(request, 'users/user.html', {'target_user': target_user})
+
+def user_edit(request, user_id):
+    pass

@@ -42,10 +42,12 @@
     <div class="profile_details main_box">
       <h2 class="main_category">User Info</h2>
       <table class="user_info">
+        {% if targer_user.bio %}
         <tr>
           <th class="profile_key">Bio:</th>
           <td>{{ target_user.bio }}</td>
         </tr>
+        {% endif %}
         <tr>
           <th class="profile_key">Rank:</th>
           <td>{{ target_user.rank }}</td>
