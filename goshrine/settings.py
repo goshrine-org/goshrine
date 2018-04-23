@@ -77,6 +77,15 @@ TEMPLATES = [
 ASGI_APPLICATION = "goshrine.routing.application"
 WSGI_APPLICATION = 'goshrine.wsgi.application'
 
+CHANNEL_LAYERS = {
+    "default": {
+        "BACKEND": "channels_redis.core.RedisChannelLayer",
+        "CONFIG": {
+            "hosts": [("localhost", 6379)],
+        },
+    },
+}
+
 # Database
 # https://docs.djangoproject.com/en/2.0/ref/settings/#databases
 
