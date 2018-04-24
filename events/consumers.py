@@ -16,8 +16,9 @@ class TestConsumer(AsyncJsonWebsocketConsumer):
 
     @database_sync_to_async
     def set_room(self, user, room):
-        user.room = room
-        user.save()
+        if user.is_authenticated:
+            user.room = room
+            user.save()
 
     @database_sync_to_async
     def get_room(self, room_id):
@@ -65,26 +66,43 @@ class TestConsumer(AsyncJsonWebsocketConsumer):
         return await method(stream, **payload['arguments'])
 
     async def room_join(self, stream, room_id):
-        room = await self.get_room(room_id)
-        if room is None:
-            return None
+        user  = self.scope.get('user', None)
+        group = self.room_to_group(room_id)
+        room  = await self.get_room(room_id)
 
-        print("[room] join '{}'".format(room_id))
+        # If we don't have this room in our database, we bail.
+        if room is None:
+            return
+
+        # Debug log.
+        if user is None or not user.is_authenticated:
+            username = '[anonymous]'
+        else:
+            username = user.login
+        print("[room] '{}' joined room {}".format(username, room_id))
 
         # Create a new channel for the room by converting its name to a group
         # name and adding it.
-        group = self.room_to_group(room_id)
         await self.channel_layer.group_add(
             group,
             self.channel_name
         )
 
-        # Flag in the database which room the current user joined, and create
-        # an event message.
-        user = self.scope['user']
-        await self.set_room(user, room)
+        # Keep track of this room in our set of rooms.
         self._rooms.add(room_id)
 
+        # If we don't have a user context, or an anonymous one, we're done
+        # here.  This is to ensure users can view rooms without actually
+        # having signed in.
+        if user is None or not user.is_authenticated:
+            return
+
+        # Flag in the database which room the current user joined, and create
+        # an event message.
+        await self.set_room(user, room)
+
+
+        # Notify everyone in the group we arrived.
         response = {
             'action'    : 'user_arrive',
             'id'        : user.id,
@@ -92,8 +110,6 @@ class TestConsumer(AsyncJsonWebsocketConsumer):
             'avatar_pic': user.avatar_pic,
             'rank'      : user.rank
         }
-
-        # Notify everyone in the group we arrived.
         await self.channel_layer.group_send(group, {
             'type'   : 'room.xmit.event',
             'stream' : stream,
@@ -108,31 +124,35 @@ class TestConsumer(AsyncJsonWebsocketConsumer):
         })
 
     async def room_leave(self, stream, room_id):
-        room = await self.get_room(room_id)
+        user  = self.scope.get('user', None)
+        group = self.room_to_group(room_id)
+        room  = await self.get_room(room_id)
+
         if room is None:
             return None
 
         print("[room] leave '{}'".format(room_id))
 
-        user = self.scope['user']
-        await self.set_room(user, None)
-        response = {
-            'action'    : 'user_leave',
-            'id'        : user.id,
-            'login'     : user.login,
-            'avatar_pic': user.avatar_pic,
-            'rank'      : user.rank
-        }
+        # If we are a valid authenticated user, we broadcast a part
+        # notification to everyone in the room.
+        if user and user.is_authenticated:
+            await self.set_room(user, None)
+            response = {
+                'action'    : 'user_leave',
+                'id'        : user.id,
+                'login'     : user.login,
+                'avatar_pic': user.avatar_pic,
+                'rank'      : user.rank
+            }
 
-        # Notify everyone in the group we departed.
-        group = self.room_to_group(room_id)
-        await self.channel_layer.group_send(group, {
-            'type'   : 'room.xmit.event',
-            'stream' : stream,
-            'payload': response
-        })
+            # Notify everyone in the group we departed.
+            await self.channel_layer.group_send(group, {
+                'type'   : 'room.xmit.event',
+                'stream' : stream,
+                'payload': response
+            })
 
-        # And depart from the group.
+        # Depart from the broadcast group.
         await self.channel_layer.group_discard(
             group,
             self.channel_name
@@ -140,9 +160,17 @@ class TestConsumer(AsyncJsonWebsocketConsumer):
         self._rooms.remove(room_id)
 
     async def room_chat(self, stream, room_id, msg):
+        user  = self.scope.get('user', None)
+        group = self.room_to_group(room_id)
+
+        # Non-registered users aren't allowed to send messages.
+        if not user or not user.is_authenticated:
+            return
+
+        # See if this room is present in the database.
         room = await self.get_room(room_id)
         if room is None:
-            return None
+            return
 
         print("[room] chat in room {}: '{}'".format(room_id, msg))
 
@@ -160,7 +188,6 @@ class TestConsumer(AsyncJsonWebsocketConsumer):
         }
 
         # Relay the message to everyone in the group, including ourselves.
-        group = self.room_to_group(room_id)
         await self.channel_layer.group_send(group, {
             'type'   : 'room.xmit.event',
             'stream' : stream,

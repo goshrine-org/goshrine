@@ -1,5 +1,5 @@
 from django.shortcuts import render, redirect
-from django.contrib.auth import get_user_model, login, authenticate
+from django.contrib.auth import get_user_model, login, authenticate, logout
 from common import flash
 from .forms import UserForm, LoginForm
 import itertools
@@ -59,6 +59,13 @@ def sign_in(request):
             return render(request, 'users/sign_in.html', context)
 
     return render(request, 'users/sign_in.html', {'form': LoginForm()})
+
+def sign_out(request):
+    logout(request)
+    msg     = 'Signed out successfully.'
+    flashes = [{'color': 'green', 'msg': msg, 'bold': False}]
+    flash.flashes_set(request, flashes)
+    return redirect('/')
 
 def user(request, user_id):
     try:
