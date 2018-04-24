@@ -10585,6 +10585,9 @@ goshrine = function() {
        });
     });
 
+    if (typeof(room) !== 'undefined')
+      room.refreshMemberList();
+
     $("#connection_fail").slideUp();
   }
   function c() {
@@ -10632,10 +10635,7 @@ goshrine = function() {
 
       f.socket.addEventListener('open', a);
       f.socket.addEventListener('close', c);
-
-      f.listen(function(action, stream) {
-        console.log(action, stream);
-      });
+      f.listen();
   },
 
   addSubscription:function(a, b) {
@@ -10702,10 +10702,13 @@ Function.prototype.bind = function(a) {
     return c.apply(a, d.concat(Array.from(arguments)));
   };
 };
+
 goshrine.Room = function() {
   this.init.apply(this, arguments);
 };
-goshrine.Room.prototype = {init:function(a) {
+
+goshrine.Room.prototype = {
+init:function(a) {
   this.name = a.name;
   this.room_id = a.id;
   this.subscribed_users = [];
@@ -10716,7 +10719,6 @@ goshrine.Room.prototype = {init:function(a) {
     new goshrine.MatchSettings(user_id, room.room_id);
     a.preventDefault();
   });
-  this.refreshMemberList();
   this.refreshChatMessages();
   currentUser.queue_id && goshrine.addSubscription("/user/private/" + currentUser.queue_id, goshrine.privateMessage);
   goshrine.joinRoom(this.room_id, this.receiveRoomMessage.bind(this));
@@ -10776,7 +10778,9 @@ goshrine.Room.prototype = {init:function(a) {
   $.getJSON("/rooms/messages/" + this.room_id, null, function(a) {
     goshrine.replaceChatMessages(a);
   }.bind(this));
-}, refreshMemberList:function() {
+},
+
+refreshMemberList:function() {
   $.getJSON("/rooms/members/" + this.room_id, null, function(a) {
     $("#member_list").html("");
     for (var c = 0; c < a.length; c++) {
@@ -10784,6 +10788,7 @@ goshrine.Room.prototype = {init:function(a) {
     }
   }.bind(this));
 }};
+
 goshrine.MatchSettings = function() {
   this.init.apply(this, arguments);
 };
