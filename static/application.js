@@ -12610,6 +12610,12 @@ goshrine = function() {
 //    return f.subscribe(a, b);
   },
 
+  sendChatMsg:function(room_id, message) {
+    console.log("SendChatMsg in room " + room_id);
+    f.send({ 'channel': '/room/' + room_id,
+             'data'   : { 'action': 'chat', 'msg': message }});
+  },
+
   showTemporaryMessage:function(a) {
     var b = $("<div />").addClass("errorExplanation").html(a);
     $("#temp_messages").prepend(b);
@@ -12720,7 +12726,7 @@ goshrine.Room.prototype = {init:function(a) {
     $(this).remove();
   }), this.subscribed_users.splice(c, 1));
 }, sendChatMsg:function() {
-  $.post("/room_chat_messages", {room_id:this.room_id, message:$("#room_chat_input")[0].value});
+  goshrine.sendChatMsg(this.room_id, $("#room_chat_input")[0].value);
   $("#room_chat_input")[0].value = "";
 }, refreshChatMessages:function() {
   $.getJSON("/rooms/messages/" + this.room_id, null, function(a) {

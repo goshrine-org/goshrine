@@ -1,8 +1,13 @@
 from channels.generic.websocket import AsyncJsonWebsocketConsumer
 from channels.db import database_sync_to_async
+from django.utils import timezone
 from rooms.models import Room
 
 class TestConsumer(AsyncJsonWebsocketConsumer):
+    def __init__(self, *args, **kwargs):
+        super().__init__(*args, **kwargs)
+        self._channels = {}
+
     @database_sync_to_async
     def set_room(self, user, room):
         print("SET ROOM", type(user))
@@ -18,6 +23,9 @@ class TestConsumer(AsyncJsonWebsocketConsumer):
             return None
         return room
 
+    def add_channel_handler(self, name, method, args):
+        self._channels[name] = (method, args)
+
     async def connect(self):
         print('connect')
         # Check if the user is logged in, otherwise, disable the chat.
@@ -26,9 +34,9 @@ class TestConsumer(AsyncJsonWebsocketConsumer):
 
         await self.accept()
 
-        self._channels = {
-            '/meta/subscribe': (self.subscribe, ['subscription'])
-        }
+        self.add_channel_handler(
+            '/meta/subscribe', self.subscribe, ['subscription']
+        )
 
     async def disconnect(self, close_code):
         for channel in self._channels.keys():
@@ -44,6 +52,8 @@ class TestConsumer(AsyncJsonWebsocketConsumer):
         if data['channel'] not in self._channels:
             return await self.close()
 
+        print(data)
+
         method, arguments = self._channels[data['channel']]
 
         try:
@@ -51,12 +61,12 @@ class TestConsumer(AsyncJsonWebsocketConsumer):
         except KeyError:
             return await self.close()
 
-        return await method(*args)
+        return await method(data['channel'], *args)
 
     def _channel_to_group(self, subscription):
         return subscription.replace('/', '.')
 
-    async def subscribe(self, subscription):
+    async def subscribe(self, stream, subscription):
         room = None
         if subscription.startswith('/room/'):
             room = await self.get_room(subscription)
@@ -66,7 +76,8 @@ class TestConsumer(AsyncJsonWebsocketConsumer):
 
         print("subscribed to '{}'".format(subscription))
         group = self._channel_to_group(subscription)
-        self._channels[subscription] = self.channel_handler
+
+        self.add_channel_handler(subscription, self.channel_handler, ['data'])
         await self.channel_layer.group_add(
             group,
             self.channel_name
@@ -135,5 +146,30 @@ class TestConsumer(AsyncJsonWebsocketConsumer):
             'payload': event['payload']
         })
 
-    async def channel_handler(self, data):
-        print(data)
+    async def channel_handler(self, stream, data):
+        group = self._channel_to_group(stream)
+        print(stream, data)
+
+        user = self.scope['user']
+        response = {
+            'action': 'chat',
+            'msg'   : {
+                'created_at': timezone.now().strftime('%Y-%m-%dT%H:%M:%SZ'),
+                'user': user.login,
+                'text': data['msg']
+            }
+        }
+
+        # Relay the message to everyone in the group, including ourselves.
+        await self.channel_layer.group_send(group, {
+            'type'   : 'chat',
+            'stream' : stream,
+            'payload': response
+        })
+
+    async def chat(self, event):
+        print("EVENT:", event)
+        await self.send_json({
+            'stream' : event['stream'],
+            'payload': event['payload']
+        })
