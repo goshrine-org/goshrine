@@ -61,10 +61,11 @@ def sign_in(request):
     return render(request, 'users/sign_in.html', {'form': LoginForm()})
 
 def sign_out(request):
-    logout(request)
-    msg     = 'Signed out successfully.'
-    flashes = [{'color': 'green', 'msg': msg, 'bold': False}]
-    flash.flashes_set(request, flashes)
+    if request.user is not None and request.user.is_authenticated:
+        logout(request)
+        msg     = 'Signed out successfully.'
+        flashes = [{'color': 'green', 'msg': msg, 'bold': False}]
+        flash.flashes_set(request, flashes)
     return redirect('/')
 
 def user(request, user_id):
