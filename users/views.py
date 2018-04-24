@@ -94,7 +94,7 @@ def user(request, user_id):
     if request.method != 'POST':
         return render(request, 'users/user.html', {'target_user': target_user})
 
-    form   = EditForm(request.POST, instance=target_user)
+    form   = EditForm(request.POST, request.FILES, instance=target_user)
     errors = []
     if not form.is_valid():
         # Reload 'targer_user' as we may have mucked it up if the form is

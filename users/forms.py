@@ -1,3 +1,5 @@
+from django.core.files.storage import FileSystemStorage
+import os
 from django import forms
 from .models import User
 
@@ -11,7 +13,8 @@ user_name_map = {
     'bio'                       : 'user[bio]',
     'click_sounds_flag'         : 'user[click_sounds_flag]',
     'notice_sounds_flag'        : 'user[notice_sounds_flag]',
-    'available'                 : 'user[available]'
+    'available'                 : 'user[available]',
+    'photo'                     : 'user[photo]'
 }
 
 # We do not rely on the User model, as the login field can represent either
@@ -91,9 +94,17 @@ class UserForm(forms.ModelForm):
         }
 
 class EditForm(forms.ModelForm):
+    avatar_pic = forms.ImageField(
+        label  = 'Upload a new picture',
+        widget = forms.FileInput(attrs={'id': 'user_photo'})
+    )
+    field_order = ['avatar_pic']
+
     def __init__(self, *args, **kwargs):
         super().__init__(*args, **kwargs)
         self.label_suffix = ''
+
+        self.user = kwargs['instance']
 
         self.fields['login'].error_messages = {
             'unique'    : "Login has already been taken",
@@ -111,6 +122,16 @@ class EditForm(forms.ModelForm):
     def add_prefix(self, field_name):
         field_name = user_name_map.get(field_name, field_name)
         return super().add_prefix(field_name)
+
+    def save(self):
+        pic          = self.cleaned_data['avatar_pic']
+        filename     = os.path.basename(pic.name)
+        content_type = pic.content_type
+
+        fs = FileSystemStorage(location='media/photos/{}/original/'.format(self.user.id))
+        fs.save(filename, pic)
+        print(fs.url(filename))
+        return super().save()
 
     class Meta:
         model   = User

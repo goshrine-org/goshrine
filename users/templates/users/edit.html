@@ -22,10 +22,6 @@
         {% csrf_token %}
       </div>
       <table class="profile_edit">
-        <tr class="profile_item">
-          <th><label for="user_photo">Upload a new picture</label></th>
-          <td><input id="user_photo" name="user[photo]" type="file" /></td>
-        </tr>
         {% for field in form.visible_fields %}
         <tr class="profile_item">
           <th>{{ field.label_tag }}</th>
