@@ -10583,7 +10583,6 @@ goshrine = function() {
          "method"   : "room_join",
          "arguments": { "room_id": room_id }
        });
-//       f.send({ "channel": "/meta/subscribe", "subscription": k });
     });
 
     $("#connection_fail").slideUp();
@@ -10637,14 +10636,6 @@ goshrine = function() {
       f.listen(function(action, stream) {
         console.log(action, stream);
       });
-    
-//    f = new Faye.Client(location.protocol + "//" + location.host + "/events", {timeout:15});
-//    f.bind("transport:down", c);
-//    f.bind("transport:up", a);
-//    f.addExtension(new AuthExt("" + g.id + ":" + g.faye_token));
-//      f = new WebSocket('ws://' + location.host + '/events')
-//      f.onopen  = a;
-//      f.onclose = c;
   },
 
   addSubscription:function(a, b) {

@@ -1,7 +1,7 @@
 from channels.generic.websocket import AsyncJsonWebsocketConsumer
 from channels.db import database_sync_to_async
 from django.utils import timezone
-from rooms.models import Room
+from rooms.models import Room, Message
 
 class TestConsumer(AsyncJsonWebsocketConsumer):
     def __init__(self, *args, **kwargs):
@@ -27,6 +27,10 @@ class TestConsumer(AsyncJsonWebsocketConsumer):
             return None
         return room
 
+    @database_sync_to_async
+    def db_msg_save(self, user, room, message, time):
+        Message.objects.create(text=message, created_at=time, user=user, room=room)
+
     def room_to_group(self, room_id):
         return "room_{}".format(room_id)
 
@@ -43,7 +47,6 @@ class TestConsumer(AsyncJsonWebsocketConsumer):
             await self.room_leave(room_id, room_id)
 
     async def receive_json(self, data):
-        print("JSON:", data)
         if 'stream' not in data or 'payload' not in data:
             return await self.close()
 
@@ -66,7 +69,6 @@ class TestConsumer(AsyncJsonWebsocketConsumer):
         if room is None:
             return None
 
-        print(type(room_id), type(stream))
         print("[room] join '{}'".format(room_id))
 
         # Create a new channel for the room by converting its name to a group
@@ -142,14 +144,16 @@ class TestConsumer(AsyncJsonWebsocketConsumer):
         if room is None:
             return None
 
-        print(type(stream), type(room_id))
         print("[room] chat in room {}: '{}'".format(room_id, msg))
 
-        user = self.scope['user']
+        user      = self.scope['user']
+        timestamp = timezone.now()
+        await self.db_msg_save(user, room, msg, timestamp)
+
         response = {
             'action': 'chat',
             'msg'   : {
-                'created_at': timezone.now().strftime('%Y-%m-%dT%H:%M:%SZ'),
+                'created_at': timestamp.strftime('%Y-%m-%dT%H:%M:%SZ'),
                 'user': user.login,
                 'text': msg
             }
