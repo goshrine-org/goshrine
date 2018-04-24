@@ -2,6 +2,7 @@ from django.shortcuts import render
 from django.http import JsonResponse, Http404
 from .models import Message, Room
 from users.models import User
+from django.utils.html import escape
 import json
 
 def index(request):
@@ -42,7 +43,7 @@ def messages(request, room_id):
         # The Zulu suffix will be wrong.
         msg               = {}
         msg['created_at'] = message.created_at.strftime('%Y-%m-%dT%H:%M:%SZ')
-        msg['text']       = message.text
+        msg['text']       = escape(message.text)
         msg['user']       = message.user.login
         msg['user_id']    = message.user.id
         json_messages.append(msg)
