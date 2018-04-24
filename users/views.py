@@ -1,10 +1,28 @@
 from django.shortcuts import render, redirect
 from django.contrib.auth import get_user_model, login, authenticate, logout
 from common import flash
-from .forms import UserForm, LoginForm
+from .forms import UserForm, LoginForm, EditForm
 import itertools
 
 User = get_user_model()
+
+def _user_get(request):
+    if not hasattr(request, 'user'):
+        return None
+    return request.user
+
+def _user_authenticated_get(request):
+    user = _user_get(request)
+    if user is None: return None
+    if not hasattr(user, 'is_authenticated'): return None
+    if not user.is_authenticated: return None
+    return user
+
+def _user_target_get(user_id):
+    try:
+        return User.objects.get(pk=user_id)
+    except User.DoesNotExist:
+        return None
 
 def index(request):
     if request.method == 'POST':
@@ -69,12 +87,49 @@ def sign_out(request):
     return redirect('/')
 
 def user(request, user_id):
-    try:
-        target_user = User.objects.get(pk=user_id)
-    except User.DoesNotExist:
+    target_user = _user_target_get(user_id)
+    if target_user is None:
        raise Http404()
 
-    return render(request, 'users/user.html', {'target_user': target_user})
+    if request.method != 'POST':
+        return render(request, 'users/user.html', {'target_user': target_user})
+
+    form   = EditForm(request.POST)
+    errors = []
+    if not form.is_valid():
+        errors  = itertools.chain.from_iterable(form.errors.values())
+        context = {
+            'form'       : form,
+            'target_user': target_user,
+            'errors'     : errors
+        }
+        return render(request, 'users/edit.html', context)
+
+    form.save()
+
+    msg = 'Settings were successfully updated.'
+    flashes = [{'color': 'green', 'msg': msg, 'bold': False}]
+    flash.flashes_set(request, flashes)
+    return redirect('/')
 
 def user_edit(request, user_id):
-    pass
+    user        = _user_authenticated_get(request)
+    target_user = _user_target_get(user_id)
+
+    if user is None:
+        msg = 'You must be logged in to access this page.'
+        flashes = [{'color': 'green', 'msg': msg, 'bold': False}]
+        flash.flashes_set(request, flashes)
+        return redirect('/')
+
+    if target_user is None or target_user.id != user.id:
+        msg = "You don't have privileges to access this page."
+        flashes = [{'color': 'green', 'msg': msg, 'bold': False}]
+        flash.flashes_set(request, flashes)
+        return redirect('/')
+
+    context = {
+        'form': EditForm(instance=target_user),
+        'target_user': target_user
+    }
+    return render(request, 'users/edit.html', context)
