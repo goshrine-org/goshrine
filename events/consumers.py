@@ -6,25 +6,29 @@ from rooms.models import Room
 class TestConsumer(AsyncJsonWebsocketConsumer):
     def __init__(self, *args, **kwargs):
         super().__init__(*args, **kwargs)
-        self._channels = {}
+        self._rooms   = set()
+
+        self._methods = {
+            'room_join' : self.room_join,
+            'room_leave': self.room_leave,
+            'room_chat' : self.room_chat
+        }
 
     @database_sync_to_async
     def set_room(self, user, room):
-        print("SET ROOM", type(user))
         user.room = room
         user.save()
 
     @database_sync_to_async
-    def get_room(self, room):
-        room_id = int(room.split('/')[-1])
+    def get_room(self, room_id):
         try:
             room = Room.objects.get(pk=room_id)
         except Room.DoesNotExist:
             return None
         return room
 
-    def add_channel_handler(self, name, method, args):
-        self._channels[name] = (method, args)
+    def room_to_group(self, room_id):
+        return "room_{}".format(room_id)
 
     async def connect(self):
         print('connect')
@@ -34,57 +38,51 @@ class TestConsumer(AsyncJsonWebsocketConsumer):
 
         await self.accept()
 
-        self.add_channel_handler(
-            '/meta/subscribe', self.subscribe, ['subscription']
-        )
-
     async def disconnect(self, close_code):
-        for channel in self._channels.keys():
-            print('disconnecting', channel)
-            await self.unsubscribe(channel)
+        for room_id in list(self._rooms):
+            await self.room_leave(room_id, room_id)
 
     async def receive_json(self, data):
-        # Someone is messing around, so close the websocket.
-        if 'channel' not in data:
+        print("JSON:", data)
+        if 'stream' not in data or 'payload' not in data:
             return await self.close()
 
-        # If this is an unknown channel, close things.
-        if data['channel'] not in self._channels:
+        stream  = data['stream']
+        payload = data['payload']
+
+        if 'method' not in payload or 'arguments' not in payload:
             return await self.close()
 
-        print(data)
-
-        method, arguments = self._channels[data['channel']]
-
-        try:
-            args = [data[argument] for argument in arguments]
-        except KeyError:
+        # See if we have a handler for the requested method.
+        method = self._methods[payload['method']]
+        if method is None:
             return await self.close()
 
-        return await method(data['channel'], *args)
+        # Handle the request.
+        return await method(stream, **payload['arguments'])
 
-    def _channel_to_group(self, subscription):
-        return subscription.replace('/', '.')
+    async def room_join(self, stream, room_id):
+        room = await self.get_room(room_id)
+        if room is None:
+            return None
 
-    async def subscribe(self, stream, subscription):
-        room = None
-        if subscription.startswith('/room/'):
-            room = await self.get_room(subscription)
-            # XXX: error
-            if room is None:
-                return None
+        print(type(room_id), type(stream))
+        print("[room] join '{}'".format(room_id))
 
-        print("subscribed to '{}'".format(subscription))
-        group = self._channel_to_group(subscription)
-
-        self.add_channel_handler(subscription, self.channel_handler, ['data'])
+        # Create a new channel for the room by converting its name to a group
+        # name and adding it.
+        group = self.room_to_group(room_id)
         await self.channel_layer.group_add(
             group,
             self.channel_name
         )
 
+        # Flag in the database which room the current user joined, and create
+        # an event message.
         user = self.scope['user']
-        if room is not None: await self.set_room(user, room)
+        await self.set_room(user, room)
+        self._rooms.add(room_id)
+
         response = {
             'action'    : 'user_arrive',
             'id'        : user.id,
@@ -95,30 +93,27 @@ class TestConsumer(AsyncJsonWebsocketConsumer):
 
         # Notify everyone in the group we arrived.
         await self.channel_layer.group_send(group, {
-            'type'   : 'user.arrive',
-            'stream' : subscription,
+            'type'   : 'room.xmit.event',
+            'stream' : stream,
             'payload': response
         })
 
-    async def user_arrive(self, event):
+    async def room_xmit_event(self, event):
+        print("xmit:", event)
         await self.send_json({
             'stream' : event['stream'],
             'payload': event['payload']
         })
 
-    async def unsubscribe(self, subscription):
-        room = None
-        if subscription.startswith('/room/'):
-            room = await self.get_room(subscription)
-            # XXX: error
-            if room is None:
-                return None
+    async def room_leave(self, stream, room_id):
+        room = await self.get_room(room_id)
+        if room is None:
+            return None
 
-        print("unsubscribing from {}".format(subscription))
-        group = self._channel_to_group(subscription)
+        print("[room] leave '{}'".format(room_id))
 
         user = self.scope['user']
-        if room is not None: await self.set_room(user, None)
+        await self.set_room(user, None)
         response = {
             'action'    : 'user_leave',
             'id'        : user.id,
@@ -128,9 +123,10 @@ class TestConsumer(AsyncJsonWebsocketConsumer):
         }
 
         # Notify everyone in the group we departed.
+        group = self.room_to_group(room_id)
         await self.channel_layer.group_send(group, {
-            'type'   : 'user.leave',
-            'stream' : subscription,
+            'type'   : 'room.xmit.event',
+            'stream' : stream,
             'payload': response
         })
 
@@ -139,16 +135,15 @@ class TestConsumer(AsyncJsonWebsocketConsumer):
             group,
             self.channel_name
         )
+        self._rooms.remove(room_id)
 
-    async def user_leave(self, event):
-        await self.send_json({
-            'stream' : event['stream'],
-            'payload': event['payload']
-        })
+    async def room_chat(self, stream, room_id, msg):
+        room = await self.get_room(room_id)
+        if room is None:
+            return None
 
-    async def channel_handler(self, stream, data):
-        group = self._channel_to_group(stream)
-        print(stream, data)
+        print(type(stream), type(room_id))
+        print("[room] chat in room {}: '{}'".format(room_id, msg))
 
         user = self.scope['user']
         response = {
@@ -156,20 +151,14 @@ class TestConsumer(AsyncJsonWebsocketConsumer):
             'msg'   : {
                 'created_at': timezone.now().strftime('%Y-%m-%dT%H:%M:%SZ'),
                 'user': user.login,
-                'text': data['msg']
+                'text': msg
             }
         }
 
         # Relay the message to everyone in the group, including ourselves.
+        group = self.room_to_group(room_id)
         await self.channel_layer.group_send(group, {
-            'type'   : 'chat',
+            'type'   : 'room.xmit.event',
             'stream' : stream,
             'payload': response
-        })
-
-    async def chat(self, event):
-        print("EVENT:", event)
-        await self.send_json({
-            'stream' : event['stream'],
-            'payload': event['payload']
         })
