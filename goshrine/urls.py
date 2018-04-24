@@ -20,12 +20,12 @@ from home import views as home_views
 from users import views as users_views
 
 urlpatterns = [
-    re_path('^/?$', home_views.index),
-    path('admin',   admin.site.urls),
-    path('home',    include('home.urls')),
-    path('login',   users_views.sign_in),
-    path('logout',  users_views.sign_out),
-    path('rooms',   include('rooms.urls')),
-    path('users',   include('users.urls')),
-    path('application.css', lambda r: render(r, 'application.css')),
+    re_path('^/?$',       home_views.index),
+       path('admin',      admin.site.urls),
+       path('home',       include('home.urls')),
+    re_path('^login/?$',  users_views.sign_in),
+    re_path('^logout/?$', users_views.sign_out),
+       path('rooms',      include('rooms.urls')),
+       path('users',      include('users.urls')),
+       path('application.css', lambda r: render(r, 'application.css')),
 ]
