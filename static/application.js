@@ -10720,6 +10720,7 @@ init:function(a) {
     a.preventDefault();
   });
   this.refreshChatMessages();
+  this.refreshMemberList();
   currentUser.queue_id && goshrine.addSubscription("/user/private/" + currentUser.queue_id, goshrine.privateMessage);
   goshrine.joinRoom(this.room_id, this.receiveRoomMessage.bind(this));
 }, receiveRoomMessage:function(a, v) {
