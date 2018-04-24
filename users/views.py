@@ -94,7 +94,7 @@ def user(request, user_id):
     if request.method != 'POST':
         return render(request, 'users/user.html', {'target_user': target_user})
 
-    form   = EditForm(request.POST)
+    form   = EditForm(request.POST, instance=target_user)
     errors = []
     if not form.is_valid():
         errors  = itertools.chain.from_iterable(form.errors.values())
