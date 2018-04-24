@@ -1,0 +1,98 @@
+{% extends "base.html" %}
+{% load static %}
+{% block content %}
+<div class="account_edit_page rounded_shoji">
+  <div class="edit_account_left">
+    <h2>Edit Your Account Settings</h2>
+
+    <form accept-charset="UTF-8" action="/users/{{ target_user.id }}" class="edit_user"
+          enctype="multipart/form-data" id="edit_user_{{ target_user.id }}" method="post">
+      <div style="margin:0;padding:0;display:inline">
+        {% csrf_token %}
+      </div>
+      <table class="profile_edit">
+        <tr class="profile_item">
+          <th><label for="user_photo">Upload a new picture</label></th>
+          <td><input id="user_photo" name="user[photo]" type="file" /></td>
+        </tr>
+        <tr class="profile_item">
+          <th><label for="user_login">Username</label></th>
+          <td><input id="user_login" name="user[login]" size="20" type="text" value="Kairi" /></td>
+        </tr>
+<!--
+    <tr class="profile_item">
+      <th><label for="user_password">Password</label></th>
+      <td><input id="user_password" name="user[password]" size="20" type="password" /></td>
+    </tr>
+    <tr class="profile_item">
+      <th><label for="user_password_confirmation">Confirm Password</label></th>
+      <td><input id="user_password_confirmation" name="user[password_confirmation]" size="20" type="password" /></td>
+    </tr>
+-->
+        <tr class="profile_item">
+          <th><label for="user_email">Email address</label></th>
+          <td><input id="user_email" name="user[email]" size="20" type="text" value="kairi@heart.com" /></td>
+        </tr>
+        <tr class="profile_item">
+          <th><label for="user_location">Location</label></th>
+          <td><input id="user_location" name="user[location]" size="20" type="text" value="" /></td>
+        </tr>
+        <tr class="profile_item">
+          <th><label for="user_url">Website</label></th>
+          <td><input id="user_url" name="user[url]" size="20" type="text" value="" /></td>
+        </tr>
+        <tr class="profile_item">
+          <th><label for="user_bio">Description</label></th>
+          <td><input id="user_bio" name="user[bio]" size="20" type="text" value="" /></td>
+        </tr>
+        <tr class="profile_item">
+          <th><label for="user_click_sounds_flag">Audible stone placement</label></th>
+          <td><input name="user[click_sounds_flag]" type="hidden" value="0" />
+              <input checked="checked" id="user_click_sounds_flag" name="user[click_sounds_flag]"
+                     type="checkbox" value="1" />
+          </td>
+        </tr>
+        <tr class="profile_item">
+          <th><label for="user_notice_sounds_flag">Play chime on match request</label></th>
+          <td><input name="user[notice_sounds_flag]" type="hidden" value="0" />
+              <input checked="checked" id="user_notice_sounds_flag" name="user[notice_sounds_flag]"
+                     type="checkbox" value="1" />
+          </td>
+        </tr>
+        <tr class="profile_item">
+          <th class="profile"><label for="user_available">Let others challenge you?</label></th>
+          <td><input name="user[available]" type="hidden" value="0" />
+              <input checked="checked" id="user_available" name="user[available]" type="checkbox" value="1" />
+          </td>
+        </tr>
+        <tr>
+          <td class="submit_profile" colspan="2"><input name="commit" type="submit" value="Apply" /></td>
+        </tr>
+      </table>
+    </form>
+  </div>
+  <div class="edit_account_right">
+    <div class="name">
+      <a href="/players/{{ target_user.login }}" class="avatar">
+        <img alt="Kairi.kingdom" src="/photos/9154/thumb/kairi.kingdom.jpg" />
+      </a>
+      <a title="{{ target_user.login }}" rel="contact" class="url" href="/users/{{ target_user.id }}">
+        <p class="user_name">{{ target_user.login }}</p>
+      </a>
+      <div style="clear:both"></div>
+    </div>
+    <p><strong>Add another service to sign in with:</strong></p>
+
+    <a href="/auth/twitter" class="auth_provider">
+      <img alt="Twitter" height="64" src="{% static "twitter_64.png" %}" width="64" />
+      Twitter
+    </a>
+    <a href="/auth/facebook" class="auth_provider">
+      <img alt="Facebook" height="64" src="{% static "facebook_64.png" %}" width="64" />
+      Facebook
+    </a>
+    <div style="clear:both"></div>
+  </div>
+  <div style="clear:both"></div>
+</div>
+{% endblock %}
