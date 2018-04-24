@@ -97,6 +97,9 @@ def user(request, user_id):
     form   = EditForm(request.POST, instance=target_user)
     errors = []
     if not form.is_valid():
+        # Reload 'targer_user' as we may have mucked it up if the form is
+        # invalid.
+        target_user = _user_target_get(user_id)
         errors  = itertools.chain.from_iterable(form.errors.values())
         context = {
             'form'       : form,
