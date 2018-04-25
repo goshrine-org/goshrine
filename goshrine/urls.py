@@ -23,6 +23,7 @@ from users import views as users_views
 
 urlpatterns = [
     re_path('^/?$',            home_views.index),
+    re_path('^about/?$',       home_views.about),
        path('admin',           admin.site.urls),
        path('home',            include('home.urls')),
     re_path('^login/?$',       users_views.sign_in),

@@ -1,0 +1,70 @@
+{% extends "base.html" %}
+{% load static %}
+{% block content %}
+<div id="about">
+  <div id="learning" class="main_box">
+    <h2 class="main_category">Learn To Play Go</h2>
+    <div id="playtogo_link">
+      <a href="http://playgo.to/iwtg/en/">
+        <img alt="Playgoto" border="0" src="{% static "/playgoto.png" %}" />
+        <br/>Interactive Go Tutorial
+      </a>
+    </div>
+    <div>
+      <a href="/welcome/video_intro">
+        <img alt="Video_thumbnail" border="0" src="{% static "/video_thumbnail.png" %}" />
+        <br/>Video Tutorial
+      </a>
+    </div>
+  </div>
+  
+  <div id="connect" class="main_box">
+    <h2 class="main_category connected">Stay Connected</h2>
+    <div class="google_plus_widget">
+      <g:plus href="https://plus.google.com/114343939316877293208" size="badge"></g:plus>
+    </div>
+  </div>
+    
+  <div id="rating" style="clear: left;" class="main_box">
+    <h2 class="main_category">Other Go Resources</h2>
+    <ul>
+      <li><a href="http://www.lifein19x19.com/">Life in 19x19</a>, Go related discussion forums.</li>
+      <li><a href="http://senseis.xmp.net/">Sensei&#x27;s Library</a>, Community edited go knowledge.</li>
+      <li><a href="http://badukmovies.com/">Baduk Movies</a>, Video go lessons (for established players).</li>
+      <li><a href="http://gtl.xmp.net/">The Go Teaching Ladder</a> - Have your games reviewed by stronger players!</li>
+      <li><a href="http://eidogo.com//">Eidogo</a> - Study Joseki, Pattern Search, and more.</li>
+    </ul>
+  </div>
+  
+  <div id="rating" class="main_box">
+    <h2 class="main_category">How Ratings Work</h2>
+    <ul>
+      <li>Only full size (19x19) games with more than two moves affect your rank.</li>
+      <li>Handicapped games (up to 9 stones) are included.</li>
+      <li>Ratings are updated after each game.</li>
+      <li>The ranking algorithm is based on Rémi Coulom's
+          <a href="http://remi.coulom.free.fr/WHR/">Whole History Rating</a>
+          algorithm.
+      </li>
+    </ul>    
+  </div>
+
+  <div style="clear:left;"></div>
+  <div id="about_site" class="main_box">
+    <h2 class="main_category">Help pay for the server that GoShrine runs on:</h2>
+    <form action="https://www.paypal.com/cgi-bin/webscr" method="post">
+    <input type="hidden" name="cmd" value="_s-xclick">
+    <input type="hidden" name="image_url" value="{% static "torii_small.png" %}">
+    <input type="hidden" name="hosted_button_id" value="DSPMMTKY98QHQ">
+    <input type="image" src="https://www.paypal.com/en_US/i/btn/btn_donate_LG.gif" border="0" name="submit" alt="PayPal - The safer, easier way to pay online!">
+    <img alt="" border="0" src="https://www.paypal.com/en_US/i/scr/pixel.gif" width="1" height="1">
+    </form>
+    <div style="text-align:center;padding-top: 10px">
+      BitCoin:
+      <a href="http://blockexplorer.com/address/13NQLu8CcBqdBxSGoT6MYqJUWUcbbBVc8J">
+        13NQLu8CcBqdBxSGoT6MYqJUWUcbbBVc8J
+      </a>
+    </div>
+  </div>
+</div>
+{% endblock %}
