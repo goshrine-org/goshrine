@@ -10561,13 +10561,6 @@ Date.prototype.toTimeStr = function(a) {
   };
 })(jQuery);
 
-var AuthExt = function(a) {
-  this.outgoing = function(c, d) {
-    "/meta/subscribe" == c.channel && (c.ext || (c.ext = {}), c.ext.authToken = a);
-    d(c);
-  };
-},
-
 goshrine = function() {
   function a() {
     console.log("Websocket opened");

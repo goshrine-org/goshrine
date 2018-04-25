@@ -1,5 +1,7 @@
 from django.core.files.storage import FileSystemStorage
+from django.core.validators import ValidationError
 import os
+import string
 from io import BytesIO
 from PIL import Image, ImageOps
 from django import forms
@@ -120,6 +122,14 @@ class EditForm(forms.ModelForm):
             'required': "Email needed for registration.",
             'invalid' : "Email is invalid"
         }
+
+    def clean_avatar_pic(self):
+        valid      = set(string.ascii_letters + string.digits + "-_.")
+        avatar_pic = self.cleaned_data['avatar_pic']
+        if set(avatar_pic.name) - valid:
+            raise ValidationError('Image use only letters, numbers, and .-_ please.', 'invalid')
+
+        return avatar_pic
 
     def add_prefix(self, field_name):
         field_name = user_name_map.get(field_name, field_name)

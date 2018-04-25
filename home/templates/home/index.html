@@ -27,7 +27,7 @@
       <: } :>
       <: if ( user.user_type == 'bot' ) { :>
 	      <img class="status_icon" src="{% static "robot_badge.png" %}" />
-	    <: } :> 
+      <: } :>
     </a>
     <div><:= user.login :> (<:= user.rank :>)
       <: if(currentUser != 'guest' && parseInt(user.id) != currentUser.id && user.available && !blocked && !blocker) { :>
