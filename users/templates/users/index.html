@@ -19,6 +19,12 @@
       <div class="username">
         <a href="players/{{ user.login }}">{{ user.login }}</a>
       </div>
+      <div class="url">
+        <a href="{{ user.url }}">{{ user.url }}</a>
+      </div>
+      <div class="bio">
+        {{ user.bio }}
+      </div>
       <div style="clear:both"></div>
     </li>
   {% endfor %}
