@@ -136,5 +136,11 @@ X_FRAME_OPTIONS = 'DENY'
 
 MEDIA_ROOT       = os.path.join(BASE_DIR, 'media')
 MEDIA_URL        = '/media/'
+STATIC_ROOT      = os.path.join(BASE_DIR, "static")
 STATIC_URL       = '/static/'
 STATICFILES_DIRS = [ os.path.join(BASE_DIR, "static"), ]
+
+# heroku deployment settings.
+import django_heroku
+django_heroku.settings(locals())
+
