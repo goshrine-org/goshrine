@@ -14,6 +14,10 @@ class Room(models.Model):
     owner      = models.ForeignKey('users.User', on_delete=models.CASCADE,
                                    related_name='rooms_owned')
 
+class RoomUser(models.Model):
+    user = models.ForeignKey('users.User', related_name='rooms', on_delete=models.CASCADE)
+    room = models.ForeignKey('rooms.Room', related_name='users', on_delete=models.CASCADE)
+
 class Message(models.Model):
     text       = models.CharField(max_length=200)
     created_at = models.DateTimeField(default=timezone.now)

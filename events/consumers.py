@@ -1,7 +1,7 @@
 from channels.generic.websocket import AsyncJsonWebsocketConsumer
 from channels.db import database_sync_to_async
 from django.utils import timezone
-from rooms.models import Room, Message
+from rooms.models import Room, Message, RoomUser
 
 class TestConsumer(AsyncJsonWebsocketConsumer):
     def __init__(self, *args, **kwargs):
@@ -15,10 +15,14 @@ class TestConsumer(AsyncJsonWebsocketConsumer):
         }
 
     @database_sync_to_async
-    def set_room(self, user, room):
+    def user_add_room(self, user, room):
         if user.is_authenticated:
-            user.room = room
-            user.save()
+            RoomUser.objects.create(user=user, room=room)
+
+    @database_sync_to_async
+    def user_del_room(self, user, room):
+        if user.is_authenticated:
+            RoomUser.objects.filter(user=user, room=room).first().delete()
 
     @database_sync_to_async
     def get_room(self, room_id):
@@ -99,8 +103,12 @@ class TestConsumer(AsyncJsonWebsocketConsumer):
 
         # Flag in the database which room the current user joined, and create
         # an event message.
-        await self.set_room(user, room)
+        await self.user_add_room(user, room)
 
+        # We don't announce our arrival if we have multiple connections to
+        # this room.
+        if RoomUser.objects.filter(user=user, room=room).count() > 1:
+            return
 
         # Notify everyone in the group we arrived.
         response = {
@@ -131,26 +139,29 @@ class TestConsumer(AsyncJsonWebsocketConsumer):
         if room is None:
             return None
 
-        print("[room] leave '{}'".format(room_id))
+        print("[room] '{}' left '{}'".format(user.login, room_id))
 
         # If we are a valid authenticated user, we broadcast a part
         # notification to everyone in the room.
         if user and user.is_authenticated:
-            await self.set_room(user, None)
-            response = {
-                'action'    : 'user_leave',
-                'id'        : user.id,
-                'login'     : user.login,
-                'avatar_pic': user.avatar_pic,
-                'rank'      : user.rank
-            }
+            await self.user_del_room(user, room)
 
-            # Notify everyone in the group we departed.
-            await self.channel_layer.group_send(group, {
-                'type'   : 'room.xmit.event',
-                'stream' : stream,
-                'payload': response
-            })
+            # See if we have the room completely, if so, notify.
+            if RoomUser.objects.filter(user=user, room=room).count() == 0:
+                response = {
+                    'action'    : 'user_leave',
+                    'id'        : user.id,
+                    'login'     : user.login,
+                    'avatar_pic': user.avatar_pic,
+                    'rank'      : user.rank
+                }
+
+                # Notify everyone in the group we departed.
+                await self.channel_layer.group_send(group, {
+                    'type'   : 'room.xmit.event',
+                    'stream' : stream,
+                    'payload': response
+                })
 
         # Depart from the broadcast group.
         await self.channel_layer.group_discard(

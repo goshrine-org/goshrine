@@ -15,8 +15,10 @@ def members(request, room_id):
     except Room.DoesNotExist:
        raise Http404()
 
+    # XXX: database query inefficient.
     json_messages = []
-    for user in room.users.all():
+    for user in room.users.values_list('user', flat=True).distinct():
+        user = User.objects.get(pk=user)
         msg = {}
         msg['id']         = user.id
         msg['login']      = user.login

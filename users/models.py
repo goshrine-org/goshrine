@@ -43,9 +43,6 @@ class User(AbstractBaseUser):
     notice_sounds_flag = models.BooleanField(default=True)
     available          = models.BooleanField(default=True)
     administrator      = models.BooleanField(default=False)
-    room               = models.ForeignKey('rooms.Room', on_delete=models.SET_NULL,
-                                           null=True, blank=True,
-                                           related_name='users')
 
     def has_module_perms(self, app_label):
         return self.administrator
