@@ -10616,7 +10616,6 @@ goshrine = function() {
 
   return {
   init:function(b) {
-      debugger;
       g = b.user;
 
       $("a.login").live("click", function(a) {
@@ -10758,8 +10757,12 @@ userArrived:function(a) {
 
   d = $("#member_template").jqote({user:a, currentUser:currentUser, room:this, blocker:d, blocked:c}, ":");
 
-  if (0 < $('.online_player[data-player-id="' + a.id + '"]').length)
-    $('.online_player[data-player-id="' + a.id + '"]').replace(d);
+  /* If the player is already there, remove it from the DOM.  We will reinsert
+   * the player after his/her rating has been determined.
+   */
+  var online_player = $(".online_player[data-player-id='" + a.id + "']");
+  if (online_player.length > 0)
+    online_player.remove();
 
   c = null;
   for (var b = null != a.whr_elo ? a.whr_elo : -9999, e = 0; e < this.subscribed_users.length; e++) {
@@ -10770,7 +10773,14 @@ userArrived:function(a) {
     }
   }
   d = $(d);
-  null != c ? ($("#room_member_" + this.subscribed_users[c].id).before(d), this.subscribed_users.splice(c, 0, a)) : ($(".online_players ul").append(d), this.subscribed_users.push(a));
+
+  if (c == null) {
+    $(".online_players ul").append(d);
+    this.subscribed_users.push(a);
+  } else {
+    ($("#room_member_" + this.subscribed_users[c].id).before(d), this.subscribed_users.splice(c, 0, a))
+  }
+
   d.hide().slideDown("slow");
 },
 
