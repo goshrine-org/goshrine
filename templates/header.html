@@ -15,7 +15,11 @@
         {% if user.is_authenticated %}
         <a href="/users/{{ user.id }}">
           {{ user.login }}
-          <img alt="Kairi.kingdom" class="small_avatar" src="/photos/{{ user.id }}/thumb/{{ user.avatar_pic }}" />
+          {% if user.avatar_pic %}
+            <img alt="Kairi.kingdom" class="small_avatar" src="/photos/{{ user.id }}/thumb/{{ user.avatar_pic }}" />
+          {% else %}
+             <img alt="Nopic" class="small_avatar" src="{% static "/nopic.jpg" %}" />
+          {% endif %}
         </a>
         <span style="margin-left: 10px; margin-right: 11px; border-right: 1px dotted #000"></span> 
         <a href="/users/{{ user.id }}/edit">Account</a>

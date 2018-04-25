@@ -37,7 +37,11 @@
   <div class="edit_account_right">
     <div class="name">
       <a href="/players/{{ target_user.login }}" class="avatar">
+        {% if target_user.avatar_pic %}
         <img alt="Kairi.kingdom" src="/photos/{{ target_user.id }}/thumb/{{ target_user.avatar_pic }}" />
+        {% else %}
+        <img alt="Nopic" src="{% static "/nopic.jpg" %}" />
+        {% endif %}
       </a>
       <a title="{{ target_user.login }}" rel="contact" class="url" href="/users/{{ target_user.id }}">
         <p class="user_name">{{ target_user.login }}</p>
