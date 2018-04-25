@@ -22,16 +22,17 @@ from home import views as home_views
 from users import views as users_views
 
 urlpatterns = [
-    re_path('^/?$',            home_views.index),
-    re_path('^about/?$',       home_views.about),
-       path('admin',           admin.site.urls),
-       path('home',            include('home.urls')),
-    re_path('^login/?$',       users_views.sign_in),
-    re_path('^logout/?$',      users_views.sign_out),
-    re_path('^players/?$',     users_views.index),
-       path('rooms',           include('rooms.urls')),
-       path('users',           include('users.urls')),
-       path('application.css', render,
+    re_path('^/?$',                home_views.index),
+    re_path('^about/?$',           home_views.about),
+       path('admin',               admin.site.urls),
+       path('home',                include('home.urls')),
+       path('welcome/video_intro', home_views.video_intro),
+    re_path('^login/?$',           users_views.sign_in),
+    re_path('^logout/?$',          users_views.sign_out),
+    re_path('^players/?$',         users_views.index),
+       path('rooms',               include('rooms.urls')),
+       path('users',               include('users.urls')),
+       path('application.css',     render,
            kwargs={
                'template_name': 'application.css',
                'content_type' : 'text/css'
