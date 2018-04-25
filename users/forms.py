@@ -99,8 +99,9 @@ class UserForm(forms.ModelForm):
 
 class EditForm(forms.ModelForm):
     avatar_pic = forms.ImageField(
-        label  = 'Upload a new picture',
-        widget = forms.FileInput(attrs={'id': 'user_photo'})
+        required = False,
+        label    = 'Upload a new picture',
+        widget   = forms.FileInput(attrs={'id': 'user_photo'})
     )
     field_order = ['avatar_pic']
 
@@ -124,8 +125,12 @@ class EditForm(forms.ModelForm):
         }
 
     def clean_avatar_pic(self):
-        valid      = set(string.ascii_letters + string.digits + "-_.")
+        # See if this submission has an avatar_pic.
         avatar_pic = self.cleaned_data['avatar_pic']
+        if avatar_pic is None:
+            return None
+
+        valid = set(string.ascii_letters + string.digits + "-_.")
         if set(avatar_pic.name) - valid:
             raise ValidationError('Image use only letters, numbers, and .-_ please.', 'invalid')
 
@@ -147,7 +152,11 @@ class EditForm(forms.ModelForm):
         fs.save(path, image)
 
     def save(self):
-        pic          = self.cleaned_data['avatar_pic']
+        # If no avatar pic was provided, just save the model.
+        pic = self.cleaned_data['avatar_pic']
+        if pic is None:
+            return super().save()
+
         filename     = os.path.basename(pic.name)
         content_type = pic.content_type
         pic_thumb    = self._thumbnail(pic, (46, 46))
