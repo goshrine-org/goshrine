@@ -23,7 +23,7 @@
       <: if ( !user.avatar_pic || 0 === user.avatar_pic.length ) { :>
         <img class="avatar" src="{% static "nopic.jpg" %}" />
       <: } else { :>
-        <img class="avatar" src="<:= user.avatar_pic :>" />
+        <img class="avatar" src="/photos/<:= user.id :>/thumb/<:= user.avatar_pic :>" />
       <: } :>
       <: if ( user.user_type == 'bot' ) { :>
 	      <img class="status_icon" src="{% static "robot_badge.png" %}" />

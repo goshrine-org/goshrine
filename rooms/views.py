@@ -3,6 +3,7 @@ from django.http import JsonResponse, Http404
 from .models import Message, Room
 from users.models import User
 from django.utils.html import escape
+from django.conf import settings
 import json
 
 def index(request):
@@ -20,7 +21,7 @@ def members(request, room_id):
         msg['id']         = user.id
         msg['login']      = user.login
         msg['rank']       = user.rank
-        msg['avatar_pic'] = user.avatar_pic
+        msg['avatar_pic'] = 'photos/{}/original/{}'.format(user.id, user.avatar_pic)
         msg['user_type']  = ''
         msg['available']  = user.available
         json_messages.append(msg)

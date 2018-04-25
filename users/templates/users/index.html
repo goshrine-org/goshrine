@@ -8,7 +8,7 @@
       <div class="rank">{{ user.rank }}</div>
       <a href="players/{{ user.login }}" class="avatar">
         {% if user.avatar_pic %}
-        <img src="{{user.avatar_pic}}" />
+        <img src="/photos/{{ user.id }}/thumb/{{ user.avatar_pic }}" />
         {% else %}
         <img alt="Nopic" src="{% static "/nopic.jpg" %}" />
         {% endif %}

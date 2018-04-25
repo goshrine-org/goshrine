@@ -1,5 +1,7 @@
 from django.core.files.storage import FileSystemStorage
 import os
+from io import BytesIO
+from PIL import Image, ImageOps
 from django import forms
 from .models import User
 
@@ -123,15 +125,28 @@ class EditForm(forms.ModelForm):
         field_name = user_name_map.get(field_name, field_name)
         return super().add_prefix(field_name)
 
+    def _thumbnail(self, f, size):
+        pic_thumb = BytesIO()
+        img       = Image.open(f)
+        img_thumb = ImageOps.fit(img, size, Image.ANTIALIAS)
+        img_thumb.save(pic_thumb, format=img.format)
+        return pic_thumb
+
     def save(self):
         pic          = self.cleaned_data['avatar_pic']
         filename     = os.path.basename(pic.name)
         content_type = pic.content_type
+        pic_thumb    = self._thumbnail(pic, (46, 46))
+        pic_small    = self._thumbnail(pic, (115, 150))
 
-        fs = FileSystemStorage(location='media/photos/{}/original/'.format(self.user.id))
-        fs.save(filename, pic)
-        print(fs.url(filename))
-        return super().save()
+        fs = FileSystemStorage(location='media/photos/{}/'.format(self.user.id))
+        fs.save('original/{}'.format(filename), pic)
+        fs.save('thumb/{}'.format(filename), pic_thumb)
+        fs.save('small/{}'.format(filename), pic_small)
+
+        user = super().save(commit=False)
+        user.avatar_pic = filename
+        return user.save()
 
     class Meta:
         model   = User

@@ -15,6 +15,8 @@ Including another URLconf
 """
 from django.contrib import admin
 from django.urls import path, re_path, include
+from django.conf import settings
+from django.conf.urls.static import static
 from django.shortcuts import render
 from home import views as home_views
 from users import views as users_views
@@ -33,4 +35,4 @@ urlpatterns = [
                'content_type' : 'text/css'
            }
        ),
-]
+] + static('/photos/', document_root='{}/photos/'.format(settings.MEDIA_ROOT))

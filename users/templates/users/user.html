@@ -3,8 +3,8 @@
 {% block content %}
 <div class="profile">
   <div class="profile_left_column">
-    <a href="/photos/9154/original/kairi.kingdom.jpg" class="profile_pic">
-      <img alt="Kairi.kingdom" src="/photos/9154/small/kairi.kingdom.jpg" />
+    <a href="/photos/{{ target_user.id }}/original/{{ target_user.avatar_pic }}" class="profile_pic">
+      <img alt="Kairi.kingdom" src="/photos/{{ target_user.id }}/small/{{ target_user.avatar_pic }}" />
     </a>
     <a title="{{ target_user.login }}" rel="contact" class="url" href="/users/{{ target_user.id }}">
       <p class="user_name">{{ target_user.login }}</p>
