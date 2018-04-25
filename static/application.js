@@ -10613,14 +10613,18 @@ goshrine = function() {
     $("#notifications").append($(a));
   }
   var f, g, subscriptions;
-  return {init:function(b) {
-    g = b.user;
-    $("a.login").live("click", function(a) {
-      $("#login_dialog").dialog({width:630, height:315, resizable:!1});
-      _gaq.push(["_trackPageview", "/users/sign_in"]);
-      console.log("gaq.length = " + _gaq.p.length);
-      a.preventDefault();
-    });
+
+  return {
+  init:function(b) {
+      debugger;
+      g = b.user;
+
+      $("a.login").live("click", function(a) {
+        $("#login_dialog").dialog({width:630, height:315, resizable:!1});
+        _gaq.push(["_trackPageview", "/users/sign_in"]);
+        console.log("gaq.length = " + _gaq.p.length);
+        a.preventDefault();
+      });
 
       rooms = {};
       f = new channels.WebSocketBridge();
@@ -10668,13 +10672,19 @@ goshrine = function() {
     for (var b = 0; b < a.length; b++) {
       d(a[b]);
     }
-  }, acceptMatch:function(a) {
+  },
+
+  acceptMatch:function(a) {
     window.location.href = "/match/accept/" + a;
-  }, rejectMatch:function(a) {
+  },
+
+  rejectMatch:function(a) {
     $.post("/match/reject/" + a);
     b(a);
-  }, removeMatchNotification:b};
+  },
+  removeMatchNotification:b};
 }();
+
 Array.from = function(a) {
   for (var c = [], d = 0; d < a.length; d++) {
     c[d] = a[d];
@@ -10717,12 +10727,12 @@ init:function(a) {
   currentUser.queue_id && goshrine.addSubscription("/user/private/" + currentUser.queue_id, goshrine.privateMessage);
   goshrine.joinRoom(this.room_id, this.receiveRoomMessage.bind(this));
 }, receiveRoomMessage:function(a, v) {
-  debugger;
   switch(a.action) {
     case "chat":
       goshrine.addChatMessage(a.msg);
       break;
     case "user_arrive":
+      console.log("[message] user_arrive: " + a.action)
       this.userArrived(a);
       break;
     case "user_leave":
@@ -10740,10 +10750,17 @@ init:function(a) {
   $("#room_game_list").children("li:last").remove();
 }, gameFinished:function(a, c) {
   $("#game_" + a).replaceWith(c);
-}, userArrived:function(a) {
-  var c = "guest" != currentUser && 0 <= currentUser.blocked_users.indexOf(a.id), d = "guest" != currentUser && 0 <= currentUser.blocked_by_users.indexOf(a.id);
+},
+
+userArrived:function(a) {
+  var c = "guest" != currentUser && 0 <= currentUser.blocked_users.indexOf(a.id),
+      d = "guest" != currentUser && 0 <= currentUser.blocked_by_users.indexOf(a.id);
+
   d = $("#member_template").jqote({user:a, currentUser:currentUser, room:this, blocker:d, blocked:c}, ":");
-  0 < $(".online_player[data-player-id=" + a.id + "]").length && $(".online_player[data-player-id=" + a.id + "]").replace(d);
+
+  if (0 < $('.online_player[data-player-id="' + a.id + '"]').length)
+    $('.online_player[data-player-id="' + a.id + '"]').replace(d);
+
   c = null;
   for (var b = null != a.whr_elo ? a.whr_elo : -9999, e = 0; e < this.subscribed_users.length; e++) {
     var f = this.subscribed_users[e];
@@ -10755,7 +10772,10 @@ init:function(a) {
   d = $(d);
   null != c ? ($("#room_member_" + this.subscribed_users[c].id).before(d), this.subscribed_users.splice(c, 0, a)) : ($(".online_players ul").append(d), this.subscribed_users.push(a));
   d.hide().slideDown("slow");
-}, userLeft:function(a) {
+},
+
+userLeft:function(a) {
+  console.log("userLeft event: " + a);
   for (var c = 0, d = 0; d < this.subscribed_users.length; d++) {
     if (this.subscribed_users[d].id == a.id) {
       c = d;
@@ -10776,6 +10796,7 @@ init:function(a) {
 
 refreshMemberList:function() {
   $.getJSON("/rooms/members/" + this.room_id, null, function(a) {
+    this.subscribed_users = [];
     $("#member_list").html("");
     for (var c = 0; c < a.length; c++) {
       this.userArrived(a[c]);
