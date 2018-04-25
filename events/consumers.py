@@ -139,6 +139,11 @@ class TestConsumer(AsyncJsonWebsocketConsumer):
         if room is None:
             return None
 
+        # Debug log.
+        if user is None or not user.is_authenticated:
+            username = '[anonymous]'
+        else:
+            username = user.login
         print("[room] '{}' left '{}'".format(user.login, room_id))
 
         # If we are a valid authenticated user, we broadcast a part
