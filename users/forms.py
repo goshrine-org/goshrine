@@ -142,6 +142,10 @@ class EditForm(forms.ModelForm):
         img_thumb.save(pic_thumb, format=img.format)
         return pic_thumb
 
+    def _save_image(self, fs, path, image):
+        fs.delete(path)
+        fs.save(path, image)
+
     def save(self):
         pic          = self.cleaned_data['avatar_pic']
         filename     = os.path.basename(pic.name)
@@ -150,9 +154,9 @@ class EditForm(forms.ModelForm):
         pic_small    = self._thumbnail(pic, (115, 150))
 
         fs = FileSystemStorage(location='media/photos/{}/'.format(self.user.id))
-        fs.save('original/{}'.format(filename), pic)
-        fs.save('thumb/{}'.format(filename), pic_thumb)
-        fs.save('small/{}'.format(filename), pic_small)
+        self._save_image(fs, 'original/{}'.format(filename), pic)
+        self._save_image(fs, 'thumb/{}'.format(filename), pic_thumb)
+        self._save_image(fs, 'small/{}'.format(filename), pic_small)
 
         user = super().save(commit=False)
         user.avatar_pic = filename
