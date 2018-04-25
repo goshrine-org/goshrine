@@ -144,7 +144,7 @@ class TestConsumer(AsyncJsonWebsocketConsumer):
             username = '[anonymous]'
         else:
             username = user.login
-        print("[room] '{}' left '{}'".format(user.login, room_id))
+        print("[room] '{}' left '{}'".format(username, room_id))
 
         # If we are a valid authenticated user, we broadcast a part
         # notification to everyone in the room.
