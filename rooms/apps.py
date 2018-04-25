@@ -11,5 +11,5 @@ class RoomsConfig(AppConfig):
     def ready(self):
         try:
             return self._ready()
-        except OperationalError:
+        except:
             pass
