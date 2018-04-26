@@ -2,6 +2,7 @@ from channels.generic.websocket import AsyncJsonWebsocketConsumer
 from channels.db import database_sync_to_async
 from django.utils import timezone
 from rooms.models import Room, Message, RoomUser
+from django.db import transaction
 
 class TestConsumer(AsyncJsonWebsocketConsumer):
     def __init__(self, *args, **kwargs):
@@ -17,12 +18,16 @@ class TestConsumer(AsyncJsonWebsocketConsumer):
     @database_sync_to_async
     def user_add_room(self, user, room):
         if user.is_authenticated:
-            RoomUser.objects.create(user=user, room=room)
+            with transaction.atomic():
+                RoomUser.objects.create(user=user, room=room)
+                return RoomUser.objects.filter(user=user, room=room).count()
 
     @database_sync_to_async
     def user_del_room(self, user, room):
         if user.is_authenticated:
-            RoomUser.objects.filter(user=user, room=room).first().delete()
+            with transaction.atomic():
+                RoomUser.objects.filter(user=user, room=room).first().delete()
+                return RoomUser.objects.filter(user=user, room=room).count()
 
     @database_sync_to_async
     def get_room(self, room_id):
@@ -102,12 +107,9 @@ class TestConsumer(AsyncJsonWebsocketConsumer):
             return
 
         # Flag in the database which room the current user joined, and create
-        # an event message.
-        await self.user_add_room(user, room)
-
-        # We don't announce our arrival if we have multiple connections to
-        # this room.
-        if RoomUser.objects.filter(user=user, room=room).count() > 1:
+        # an event message.  We don't announce our arrival if we have multiple
+        # connections to this room.
+        if await self.user_add_room(user, room) > 1:
             return
 
         # Notify everyone in the group we arrived.
@@ -132,10 +134,15 @@ class TestConsumer(AsyncJsonWebsocketConsumer):
         })
 
     async def room_leave(self, stream, room_id):
+        # We cannot leave a room we haven't joined.
+        if room_id not in self._rooms:
+            return None
+
         user  = self.scope.get('user', None)
         group = self.room_to_group(room_id)
         room  = await self.get_room(room_id)
 
+        # XXX: special case database deleted rooms.
         if room is None:
             return None
 
@@ -149,10 +156,8 @@ class TestConsumer(AsyncJsonWebsocketConsumer):
         # If we are a valid authenticated user, we broadcast a part
         # notification to everyone in the room.
         if user and user.is_authenticated:
-            await self.user_del_room(user, room)
-
             # See if we have the room completely, if so, notify.
-            if RoomUser.objects.filter(user=user, room=room).count() == 0:
+            if await self.user_del_room(user, room) == 0:
                 response = {
                     'action'    : 'user_leave',
                     'id'        : user.id,
