@@ -30,6 +30,7 @@ urlpatterns = [
     re_path('^login/?$',           users_views.sign_in),
     re_path('^logout/?$',          users_views.sign_out),
     re_path('^players/?$',         users_views.index),
+       path('players/<username>',  users_views.players),
        path('rooms',               include('rooms.urls')),
        path('users',               include('users.urls')),
        path('application.css',     render,

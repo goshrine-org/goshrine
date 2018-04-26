@@ -1,7 +1,9 @@
 from django.shortcuts import render, redirect
+from django.http import Http404
 from django.contrib.auth import get_user_model, login, authenticate, logout
 from common import flash
 from .forms import UserForm, LoginForm, EditForm
+from django.core.validators import RegexValidator, ValidationError
 import itertools
 
 User = get_user_model()
@@ -23,6 +25,18 @@ def _user_target_get(user_id):
         return User.objects.get(pk=user_id)
     except User.DoesNotExist:
         return None
+
+def players(request, username):
+    # XXX: code duplication.
+    username_validator = RegexValidator("^[A-Za-z0-9_][A-Za-z0-9_.-]*$")
+
+    try:
+        username_validator(username)
+        target_user = User.objects.get(login=username)
+    except (ValidationError, User.DoesNotExist):
+       raise Http404()
+
+    return render(request, 'users/user.html', {'target_user': target_user})
 
 def index(request):
     if request.method != 'POST':
