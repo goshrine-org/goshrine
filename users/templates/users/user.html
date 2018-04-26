@@ -42,7 +42,19 @@
     <div class="profile_details main_box">
       <h2 class="main_category">User Info</h2>
       <table class="user_info">
-        {% if targer_user.bio %}
+        {% if target_user.location %}
+        <tr>
+          <th class="profile_key">Location:</th>
+          <td>{{ target_user.location }}</td>
+        </tr>
+        {% endif %}
+        {% if target_user.url %}
+        <tr>
+          <th class="profile_key">Website:</th>
+          <td>{{ target_user.url }}</td>
+        </tr>
+        {% endif %}
+        {% if target_user.bio %}
         <tr>
           <th class="profile_key">Bio:</th>
           <td>{{ target_user.bio }}</td>
