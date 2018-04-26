@@ -25,26 +25,31 @@ def _user_target_get(user_id):
         return None
 
 def index(request):
-    if request.method == 'POST':
-        form = UserForm(request.POST)
+    if request.method != 'POST':
+        users = User.objects.all()
+        return render(request, 'users/index.html', { 'users': users })
 
-        # Flatten the error lists per field, as this is what goshrine.com does.
-        errors = []
-        if not form.is_valid():
-            errors  = itertools.chain.from_iterable(form.errors.values())
-            context = {'form': form, 'errors': errors}
-            return render(request, 'users/sign_up.html', context)
+    # User registration is POSTed to '/users', and we handle it here.
+    form = UserForm(request.POST)
 
-        # Successful post, so we store, login, and redirect.
-        username = form.cleaned_data['login']
-        email    = form.cleaned_data['email']
-        password = form.cleaned_data['password']
-        user     = User.objects.create_user(username, email, password)
-        login(request, user)
-        return render(request, 'home/index.html', {})
+    # Flatten the error lists per field, as this is what goshrine.com does.
+    errors = []
+    if not form.is_valid():
+        errors  = itertools.chain.from_iterable(form.errors.values())
+        context = {'form': form, 'errors': errors}
+        return render(request, 'users/sign_up.html', context)
 
-    users = User.objects.all()
-    return render(request, 'users/index.html', { 'users': users })
+    # Successful post, so we store, login, and redirect.
+    username = form.cleaned_data['login']
+    email    = form.cleaned_data['email']
+    password = form.cleaned_data['password']
+    user     = User.objects.create_user(username, email, password)
+    login(request, user)
+
+    msg     = 'Congrats! You have signed up successfully, and can now challenge other players.'
+    flashes = [{'color': 'green', 'msg': msg, 'bold': False}]
+    flash.flashes_set(request, flashes)
+    return redirect('/')
 
 def sign_up(request):
     return render(request, 'users/sign_up.html', {'form': UserForm()})
