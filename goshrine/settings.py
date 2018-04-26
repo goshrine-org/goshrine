@@ -26,7 +26,7 @@ SECRET_KEY = '[redacted]'
 DEBUG         = True
 APPEND_SLASH  = False
 
-ALLOWED_HOSTS = ["127.0.0.1"]
+ALLOWED_HOSTS = ["127.0.0.1", "goshrine.org"]
 
 # Application definition
 
@@ -81,8 +81,7 @@ CHANNEL_LAYERS = {
     "default": {
         "BACKEND": "channels_redis.core.RedisChannelLayer",
         "CONFIG": {
-#            "hosts": [("localhost", 6379)],
-             "hosts": [("redis://h:p5fc07979e427e7d882443de0d49030ab56cbcf7b740a5695ec1231d5dd078e9f@ec2-52-214-144-149.eu-west-1.compute.amazonaws.com:23199")],
+            "hosts": [("localhost", 6379)],
         },
     },
 }
@@ -137,11 +136,6 @@ X_FRAME_OPTIONS = 'DENY'
 
 MEDIA_ROOT       = os.path.join(BASE_DIR, 'media')
 MEDIA_URL        = '/media/'
-STATIC_ROOT      = os.path.join(BASE_DIR, "static")
+#STATIC_ROOT      = os.path.join(BASE_DIR, "static")
 STATIC_URL       = '/static/'
 STATICFILES_DIRS = [ os.path.join(BASE_DIR, "static"), ]
-
-# heroku deployment settings.
-import django_heroku
-django_heroku.settings(locals())
-
