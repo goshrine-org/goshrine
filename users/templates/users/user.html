@@ -3,9 +3,15 @@
 {% block content %}
 <div class="profile">
   <div class="profile_left_column">
+    {% if target_user.avatar_pic %}
     <a href="/photos/{{ target_user.id }}/original/{{ target_user.avatar_pic }}" class="profile_pic">
       <img alt="Kairi.kingdom" src="/photos/{{ target_user.id }}/small/{{ target_user.avatar_pic }}" />
     </a>
+    {% else %}
+    <a href="{% static "/nopic.jpg" %}" class="profile_pic">
+      <img alt="Nopic" src="{% static "/nopic.jpg" %}" />
+    </a>
+    {% endif %}
     <a title="{{ target_user.login }}" rel="contact" class="url" href="/users/{{ target_user.id }}">
       <p class="user_name">{{ target_user.login }}</p>
     </a>
