@@ -84,8 +84,15 @@ class UserForm(forms.ModelForm):
             code = 'unique'
             msg  = self.fields['login'].error_messages[code]
             raise forms.ValidationError(msg, code=code)
-
         return login
+
+    def clean_email(self):
+        email = self.cleaned_data['email']
+        if email and User.objects.filter(email__iexact=email).exists():
+            code = 'unique'
+            msg  = self.fields['email'].error_messages[code]
+            raise forms.ValidationError(msg, code=code)
+        return email
 
     def clean(self):
         cleaned_data = super().clean()
