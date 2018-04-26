@@ -78,6 +78,15 @@ class UserForm(forms.ModelForm):
         field_name = user_name_map.get(field_name, field_name)
         return super().add_prefix(field_name)
 
+    def clean_login(self):
+        login = self.cleaned_data['login']
+        if login and User.objects.filter(login__iexact=login).exists():
+            code = 'unique'
+            msg  = self.fields['login'].error_messages[code]
+            raise forms.ValidationError(msg, code=code)
+
+        return login
+
     def clean(self):
         cleaned_data = super().clean()
         password     = cleaned_data.get('password')
