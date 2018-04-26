@@ -10564,24 +10564,22 @@ Date.prototype.toTimeStr = function(a) {
 goshrine = function() {
   function a() {
     console.log("Websocket opened");
+    $("#connection_fail").slideUp();
 
     /* We process room joins when the socket opens, as joins may have been
      * queued prior to the websocket being open, and in case the remote went
      * down we ensure we rejoin the rooms we had registered.
      */
-    $.each(rooms, function(room_id, handler) {
-       /* Fuck you javascript; the dictionary changes number -> string. */
-       room_id = Number(room_id);
-       f.stream(room_id).send({
-         "method"   : "room_join",
-         "arguments": { "room_id": room_id }
-       });
+    room.refreshMemberList(function() {
+      $.each(rooms, function(room_id, handler) {
+        /* Fuck you javascript; the dictionary changes number -> string. */
+        room_id = Number(room_id);
+        f.stream(room_id).send({
+          "method"   : "room_join",
+          "arguments": { "room_id": room_id }
+        });
+      })
     });
-
-    if (typeof(room) !== 'undefined')
-      room.refreshMemberList();
-
-    $("#connection_fail").slideUp();
   }
   function c() {
     console.log("Websocket closed");
@@ -10626,9 +10624,11 @@ goshrine = function() {
       });
 
       rooms = {};
-      f = new channels.WebSocketBridge();
-      f.connect("/events");
+      f     = new channels.WebSocketBridge();
+  },
 
+  connect:function() {
+      f.connect("/events");
       f.socket.addEventListener('open', a);
       f.socket.addEventListener('close', c);
       f.listen();
@@ -10666,7 +10666,9 @@ goshrine = function() {
     }, 5e3);
   }, addChatMessage:d, privateMessage:function(a) {
     "match_requested" == a.type ? 0 <= g.blocked_users.indexOf(a.match_request.proposed_by_id) || e(a.html) : "match_accepted" == a.type ? window.location.href = "/g/" + a.game_token : "match_rejected" == a.type && e(a.html);
-  }, replaceChatMessages:function(a) {
+  },
+
+  replaceChatMessages:function(a) {
     $("#chat_output").html("");
     for (var b = 0; b < a.length; b++) {
       d(a[b]);
@@ -10710,10 +10712,11 @@ goshrine.Room = function() {
 };
 
 goshrine.Room.prototype = {
-init:function(a) {
-  this.name = a.name;
-  this.room_id = a.id;
+init:function(room) {
+  this.name             = room.name;
+  this.room_id          = room.id;
   this.subscribed_users = [];
+
   a = $("#chat_output");
   a[0].scrollTop = a[0].scrollHeight - a.outerHeight();
   $(".online_player div a").live("click", function(a) {
@@ -10721,11 +10724,20 @@ init:function(a) {
     new goshrine.MatchSettings(user_id, room.room_id);
     a.preventDefault();
   });
-  this.refreshChatMessages();
-  this.refreshMemberList();
-  currentUser.queue_id && goshrine.addSubscription("/user/private/" + currentUser.queue_id, goshrine.privateMessage);
-  goshrine.joinRoom(this.room_id, this.receiveRoomMessage.bind(this));
-}, receiveRoomMessage:function(a, v) {
+
+  this.refresh = function(callback) {
+    this.refreshChatMessages();
+    this.refreshMemberList(callback);
+  //  currentUser.queue_id && goshrine.addSubscription("/user/private/" + currentUser.queue_id, goshrine.privateMessage);
+  //  goshrine.joinRoom(this.room_id, this.receiveRoomMessage.bind(this));
+  };
+
+  this.join = function() {
+    goshrine.joinRoom(this.room_id, this.receiveRoomMessage.bind(this));
+  }
+},
+
+receiveRoomMessage:function(a, v) {
   switch(a.action) {
     case "chat":
       goshrine.addChatMessage(a.msg);
@@ -10798,21 +10810,25 @@ userLeft:function(a) {
 }, sendChatMsg:function() {
   goshrine.sendChatMsg(this.room_id, $("#room_chat_input")[0].value);
   $("#room_chat_input")[0].value = "";
-}, refreshChatMessages:function() {
+},
+
+refreshChatMessages:function() {
   $.getJSON("/rooms/messages/" + this.room_id, null, function(a) {
     goshrine.replaceChatMessages(a);
   }.bind(this));
 },
 
-refreshMemberList:function() {
-  $.getJSON("/rooms/members/" + this.room_id, null, function(a) {
-    this.subscribed_users = [];
-    $("#member_list").html("");
-    for (var c = 0; c < a.length; c++) {
-      this.userArrived(a[c]);
-    }
-  }.bind(this));
-}};
+  refreshMemberList:function(callback) {
+    $.getJSON("/rooms/members/" + this.room_id, null, function(a) {
+      this.subscribed_users = [];
+      $("#member_list").html("");
+      for (var c = 0; c < a.length; c++)
+        this.userArrived(a[c]);
+
+      typeof callback === 'function' && callback();
+    }.bind(this));
+  }
+};
 
 goshrine.MatchSettings = function() {
   this.init.apply(this, arguments);
