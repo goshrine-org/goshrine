@@ -10562,6 +10562,17 @@ Date.prototype.toTimeStr = function(a) {
 })(jQuery);
 
 goshrine = function() {
+  function join_rooms() {
+      $.each(rooms, function(room_id, handler) {
+        /* Fuck you javascript; the dictionary changes number -> string. */
+        room_id = Number(room_id);
+        f.stream(room_id).send({
+          "method"   : "room_join",
+          "arguments": { "room_id": room_id }
+        });
+      });
+  }
+
   function a() {
     console.log("Websocket opened");
     $("#connection_fail").slideUp();
@@ -10570,16 +10581,7 @@ goshrine = function() {
      * queued prior to the websocket being open, and in case the remote went
      * down we ensure we rejoin the rooms we had registered.
      */
-    room.refreshMemberList(function() {
-      $.each(rooms, function(room_id, handler) {
-        /* Fuck you javascript; the dictionary changes number -> string. */
-        room_id = Number(room_id);
-        f.stream(room_id).send({
-          "method"   : "room_join",
-          "arguments": { "room_id": room_id }
-        });
-      })
-    });
+    room.refreshMemberList(function() { join_rooms(); });
   }
   function c() {
     console.log("Websocket closed");
@@ -10726,10 +10728,10 @@ init:function(room) {
   });
 
   this.refresh = function(callback) {
-    this.refreshChatMessages();
-    this.refreshMemberList(callback);
+    this.refreshMemberList(function() {
+      this.refreshChatMessages(callback);
+    }.bind(this));
   //  currentUser.queue_id && goshrine.addSubscription("/user/private/" + currentUser.queue_id, goshrine.privateMessage);
-  //  goshrine.joinRoom(this.room_id, this.receiveRoomMessage.bind(this));
   };
 
   this.join = function() {
@@ -10807,23 +10809,38 @@ userLeft:function(a) {
   null != c && ($("#room_member_" + a.id).hide("slow", function() {
     $(this).remove();
   }), this.subscribed_users.splice(c, 1));
-}, sendChatMsg:function() {
+},
+
+sendChatMsg:function() {
   goshrine.sendChatMsg(this.room_id, $("#room_chat_input")[0].value);
   $("#room_chat_input")[0].value = "";
 },
 
-refreshChatMessages:function() {
-  $.getJSON("/rooms/messages/" + this.room_id, null, function(a) {
-    goshrine.replaceChatMessages(a);
-  }.bind(this));
-},
+  refreshChatMessages:function(callback) {
+    $.getJSON("/rooms/messages/" + this.room_id, null, function(a) {
+      goshrine.replaceChatMessages(a);
+      typeof callback === 'function' && callback();
+    }.bind(this));
+  },
 
   refreshMemberList:function(callback) {
-    $.getJSON("/rooms/members/" + this.room_id, null, function(a) {
-      this.subscribed_users = [];
-      $("#member_list").html("");
-      for (var c = 0; c < a.length; c++)
-        this.userArrived(a[c]);
+    $.getJSON("/rooms/members/" + this.room_id, null, function(users) {
+      let user_ids_cur = this.subscribed_users.map(function (user) { return user.id; });
+          user_ids_cur = new Set(user_ids_cur);
+      let user_ids_new = users.map(function (user) { return user.id; });
+          user_ids_new = new Set(user_ids_new);
+
+      // Users that are already tracked, so we check if any left.
+      this.subscribed_users.forEach(function(user) {
+        if (!user_ids_new.has(user.id))
+          this.userLeft(user);
+      }.bind(this));
+
+      // Users that aren't tracked, so these are new arrivals.
+      users.forEach(function(user) {
+        if (!user_ids_cur.has(user.id))
+          this.userArrived(user);
+      }.bind(this));
 
       typeof callback === 'function' && callback();
     }.bind(this));
