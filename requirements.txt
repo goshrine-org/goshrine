@@ -1,6 +1,5 @@
 django
 django-extensions
 django-channels
-django-heroku
 channels-redis
 Pillow
