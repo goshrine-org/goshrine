@@ -1,7 +1,7 @@
 from django.shortcuts import render
 from django.http import Http404
 from django.views.decorators.csrf import csrf_exempt
-from .forms import MatchCreateForm
+from .forms import MatchCreateForm, MatchProposeForm
 from rooms.models import Room
 from users.models import User
 
@@ -31,3 +31,15 @@ def match_create(request):
         'room'       : room
     }
     return render(request, 'game/match_create.html', context)
+
+@csrf_exempt
+def match_propose(request):
+    print(request)
+    if request.method != 'GET':
+        raise Http404()
+
+    form = MatchProposeForm(request.GET)
+    if not form.is_valid():
+        raise Http404()
+
+    print(request)
