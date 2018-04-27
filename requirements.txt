@@ -3,3 +3,4 @@ django-extensions
 django-channels
 channels-redis
 Pillow
+WhiteNoise
