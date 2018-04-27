@@ -10570,18 +10570,17 @@ goshrine = function() {
           "method"   : "room_join",
           "arguments": { "room_id": room_id }
         });
+        f.stream(room_id).send({
+          "method"   : "room_list",
+          "arguments": { "room_id": room_id }
+        })
       });
   }
 
   function a() {
     console.log("Websocket opened");
     $("#connection_fail").slideUp();
-
-    /* We process room joins when the socket opens, as joins may have been
-     * queued prior to the websocket being open, and in case the remote went
-     * down we ensure we rejoin the rooms we had registered.
-     */
-    room.refreshMemberList(function() { join_rooms(); });
+    join_rooms();
   }
   function c() {
     console.log("Websocket closed");
@@ -10728,7 +10727,7 @@ init:function(room) {
   });
 
   this.refresh = function(callback) {
-    this.refreshMemberList(function() {
+    this.refreshMemberListViaGET(function() {
       this.refreshChatMessages(callback);
     }.bind(this));
   //  currentUser.queue_id && goshrine.addSubscription("/user/private/" + currentUser.queue_id, goshrine.privateMessage);
@@ -10744,8 +10743,13 @@ receiveRoomMessage:function(a, v) {
     case "chat":
       goshrine.addChatMessage(a.msg);
       break;
+    case "room_list":
+      console.log("[message] room_list");
+      this.refreshMemberList(a.list);
+      console.log("[message/] room_list");
+      break;
     case "user_arrive":
-      console.log("[message] user_arrive: " + a.action)
+      console.log("[message] user_arrive: " + a.login)
       this.userArrived(a);
       break;
     case "user_leave":
@@ -10775,8 +10779,10 @@ userArrived:function(a) {
    * the player after his/her rating has been determined.
    */
   var online_player = $(".online_player[data-player-id='" + a.id + "']");
-  if (online_player.length > 0)
+  if (online_player.length > 0) {
+    console.log("    removing " + a.login + " from the players list");
     online_player.remove();
+  }
 
   c = null;
   for (var b = null != a.whr_elo ? a.whr_elo : -9999, e = 0; e < this.subscribed_users.length; e++) {
@@ -10788,18 +10794,18 @@ userArrived:function(a) {
   }
   d = $(d);
 
-  if (c == null) {
+//  if (c == null) {
     $(".online_players ul").append(d);
     this.subscribed_users.push(a);
-  } else {
-    ($("#room_member_" + this.subscribed_users[c].id).before(d), this.subscribed_users.splice(c, 0, a))
-  }
+//  } else {
+//    ($("#room_member_" + this.subscribed_users[c].id).before(d), this.subscribed_users.splice(c, 0, a))
+//  }
 
   d.hide().slideDown("slow");
 },
 
 userLeft:function(a) {
-  console.log("userLeft event: " + a);
+  console.log("userLeft event: " + a.login);
   for (var c = 0, d = 0; d < this.subscribed_users.length; d++) {
     if (this.subscribed_users[d].id == a.id) {
       c = d;
@@ -10823,8 +10829,7 @@ sendChatMsg:function() {
     }.bind(this));
   },
 
-  refreshMemberList:function(callback) {
-    $.getJSON("/rooms/members/" + this.room_id, null, function(users) {
+  refreshMemberList:function(users) {
       let user_ids_cur = this.subscribed_users.map(function (user) { return user.id; });
           user_ids_cur = new Set(user_ids_cur);
       let user_ids_new = users.map(function (user) { return user.id; });
@@ -10832,16 +10837,23 @@ sendChatMsg:function() {
 
       // Users that are already tracked, so we check if any left.
       this.subscribed_users.forEach(function(user) {
+        console.log("subscribed: " + user.login);
         if (!user_ids_new.has(user.id))
           this.userLeft(user);
       }.bind(this));
 
       // Users that aren't tracked, so these are new arrivals.
       users.forEach(function(user) {
+        console.log("new: " + user.login);
         if (!user_ids_cur.has(user.id))
           this.userArrived(user);
       }.bind(this));
+//      typeof callback === 'function' && callback();
+  },
 
+  refreshMemberListViaGET:function(callback) {
+    $.getJSON("/rooms/members/" + this.room_id, null, function(users) {
+      this.refreshMemberList(users);
       typeof callback === 'function' && callback();
     }.bind(this));
   }

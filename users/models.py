@@ -36,6 +36,7 @@ class User(AbstractBaseUser):
     rank               = models.CharField(max_length=5, default='?')
     avatar_pic         = models.CharField(max_length=256, blank=True, default='')
     created_at         = models.DateTimeField(default=timezone.now)
+    user_type          = models.CharField(max_length=16, blank=True, default='')
     location           = models.CharField(max_length=50, blank=True, default='')
     url                = models.CharField(max_length=300, blank=True, default='')
     bio                = models.CharField(max_length=300, blank=True, default='')

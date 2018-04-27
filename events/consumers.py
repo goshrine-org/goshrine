@@ -1,5 +1,6 @@
 from channels.generic.websocket import AsyncJsonWebsocketConsumer
 from channels.db import database_sync_to_async
+from django.db.models import F
 from django.utils import timezone
 from rooms.models import Room, Message, RoomUser
 from django.db import transaction
@@ -11,6 +12,7 @@ class TestConsumer(AsyncJsonWebsocketConsumer):
 
         self._methods = {
             'room_join' : self.room_join,
+            'room_list' : self.room_list,
             'room_leave': self.room_leave,
             'room_chat' : self.room_chat
         }
@@ -28,6 +30,13 @@ class TestConsumer(AsyncJsonWebsocketConsumer):
             with transaction.atomic():
                 RoomUser.objects.filter(user=user, room=room).first().delete()
                 return RoomUser.objects.filter(user=user, room=room).count()
+
+    @database_sync_to_async
+    def db_list_room(self, room):
+        fields_as = ('id', 'login', 'rank', 'avatar_pic', 'user_type', 'available')
+        fields_q  = ('user__' + field for field in fields_as)
+        fields_as = { k: F(v) for (k, v) in zip(fields_as, fields_q) }
+        return RoomUser.objects.filter(room=room).values(*fields_q).distinct().values(**fields_as)
 
     @database_sync_to_async
     def get_room(self, room_id):
@@ -126,12 +135,29 @@ class TestConsumer(AsyncJsonWebsocketConsumer):
             'payload': response
         })
 
-    async def room_xmit_event(self, event):
-        print("xmit:", event)
-        await self.send_json({
-            'stream' : event['stream'],
-            'payload': event['payload']
-        })
+
+    async def room_list(self, stream, room_id):
+        # We cannot list a room we haven't joined.
+        if room_id not in self._rooms:
+            return None
+
+        user  = self.scope.get('user', None)
+        group = self.room_to_group(room_id)
+        room  = await self.get_room(room_id)
+
+        # XXX: special case database deleted rooms.
+        if room is None:
+            return None
+
+        # Get the list of users from the database.  This is in a format
+        # that can directly be JSON serialized.
+        room_users = list(await self.db_list_room(room))
+
+        response = {
+            'action': 'room_list',
+            'list'  : room_users
+        }
+        await self.room_xmit_event({ 'stream': stream, 'payload': response })
 
     async def room_leave(self, stream, room_id):
         # We cannot leave a room we haven't joined.
@@ -181,6 +207,10 @@ class TestConsumer(AsyncJsonWebsocketConsumer):
         self._rooms.remove(room_id)
 
     async def room_chat(self, stream, room_id, msg):
+        # We cannot chat in a room we haven't joined.
+        if room_id not in self._rooms:
+            return None
+
         user  = self.scope.get('user', None)
         group = self.room_to_group(room_id)
 
@@ -213,4 +243,10 @@ class TestConsumer(AsyncJsonWebsocketConsumer):
             'type'   : 'room.xmit.event',
             'stream' : stream,
             'payload': response
+        })
+
+    async def room_xmit_event(self, event):
+        await self.send_json({
+            'stream' : event['stream'],
+            'payload': event['payload']
         })
