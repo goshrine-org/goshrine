@@ -1,26 +1,34 @@
 {% load static %}
 <div class="match_propose">
   <form action="">
-  <input type="hidden" name="challenged_player_id" value="1" />
-  <input type="hidden" name="room_id" value="1" />
-  Please select options for your proposed game with pete.
+  <input type="hidden" name="challenged_player_id" value="{{ target_user.id }}" />
+  <input type="hidden" name="room_id" value="{{ room.id }}" />
+  Please select options for your proposed game with {{ target_user.login }}.
 
   <table>
     <tr>
-      <td class="label"><label for="black_player_id"><img alt="Black Player" src="{% static "stone_black_19.png" %}" /></label></td>
+      <td class="label">
+        <label for="black_player_id">
+          <img alt="Black Player" src="{% static "stone_black_19.png" %}" />
+        </label>
+      </td>
       <td colspan="2" class="field">
         <select class="black_player_id" name="black_player_id">
-          <option value="7333" selected="true">SakeNomiSensei</option>
-          <option value="1">pete</option>
+          <option value="{{ user.id }}" selected="true">{{ user.login }}</option>
+          <option value="{{ target_user.id }}">{{ target_user.login }}</option>
         </select>
       </td>
     </tr>
     <tr>
-      <td class="label"><label for="white_player_id"><img alt="White Player" src="{% static "/stone_white_19.png" %}" /></label></td>
+      <td class="label">
+        <label for="white_player_id">
+          <img alt="White Player" src="{% static "/stone_white_19.png" %}" />
+        </label>
+      </td>
       <td colspan="2" class="field">
       <select class="white_player_id" name="white_player_id">
-        <option value="7333">SakeNomiSensei</option>
-        <option value="1" selected="true">pete</option>
+        <option value="{{ user.id }}">{{ user.login }}</option>
+        <option value="{{ target_user.id }}" selected="true">{{ target_user.login }}</option>
       </select>
       </td>
     </tr>
