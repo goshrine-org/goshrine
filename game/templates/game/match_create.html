@@ -1,0 +1,74 @@
+<div class="match_propose">
+  <form action="">
+  <input type="hidden" name="challenged_player_id" value="1" />
+  <input type="hidden" name="room_id" value="1" />
+  Please select options for your proposed game with pete.
+
+  <table>
+    <tr>
+      <td class="label"><label for="black_player_id"><img alt="Black Player" src="/assets/stone_black_19-4201ea9baf02dcc6fd36b3599fb0ba63.png" /></label></td>
+      <td colspan="2" class="field">
+        <select class="black_player_id" name="black_player_id">
+          <option value="7333" selected="true">SakeNomiSensei</option>
+          <option value="1">pete</option>
+        </select>
+      </td>
+    </tr>
+    <tr>
+      <td class="label"><label for="white_player_id"><img alt="White Player" src="/assets/stone_white_19-564bc3996a3da0bfd2b7ab649312c94e.png" /></label></td>
+      <td colspan="2" class="field">
+      <select class="white_player_id" name="white_player_id">
+        <option value="7333">SakeNomiSensei</option>
+        <option value="1" selected="true">pete</option>
+      </select>
+      </td>
+    </tr>
+    <tr>
+      <td class="label"><label for="board_size">Board Size</label></td>
+      <td colspan="2" class="field">
+        <select name="board_size">
+          <option value="19" selected="selected">19x19</option>
+          <option value="13">13x13</option>
+          <option value="9">9x9</option>
+        </select>
+      </td>
+    </tr>
+    <tr>
+      <td class="label"><label for="handicap">Handicap</label</td>
+      <td colspan="2" class="field">
+        <select name="handicap">
+          <option value="0" selected="selected">None</option>
+          <option value="2">2</option>
+          <option value="3">3</option>
+          <option value="4">4</option>
+          <option value="5">5</option>
+          <option value="6">6</option>
+          <option value="7">7</option>
+          <option value="8">8</option>
+          <option value="9">9</option>
+        </select>
+      </td>
+    </tr>
+    <tr>
+    <td colspan="2" class="label"><label for="timed">Timed Game</label></td>
+    <td class="field"><input class="timed" name="timed" type="checkbox" value="true" checked="checked"></td>
+    </tr>
+    <tr>
+    <td colspan="2" class="label"><label class="time_param" for="main_time">Main Time (minutes)</label></td>
+    <td class="field"><input class="time_param" name="main_time" type="text" size="4" value="30"></td>
+    </tr>
+    <tr>
+    <td colspan="2" class="label"><label class="time_param" for="byo_yomi">Byo-Yomi</label>
+    <span id="byoYomiHelp" help_text="
+    <div>
+    <h2>Byo-Yomi</h2>
+    Byo-Yomi periods are extra time periods available to each player after their main time is up.  If this flag is checked, each player will have <i>five</i> Byo-Yomi periods of <i>30 seconds each</i>. If a player moves within the 30 seconds, then that full period will remain.  Only when the player takes up a full period is it removed.
+    </div>
+    "><img alt="Help" src="/assets/help-8a3a024f4f0062ceb41ce03b4adb8ab8.png" /></span>
+    </td>
+    <td class="field"><input class="time_param" name="byo_yomi" type="checkbox" value="true" checked="checked">
+    </td>
+    </tr>
+  </table>
+</form>
+</div>

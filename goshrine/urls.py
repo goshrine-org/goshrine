@@ -18,21 +18,24 @@ from django.urls import path, re_path, include
 from django.conf import settings
 from django.conf.urls.static import static
 from django.shortcuts import render
-from home import views as home_views
+from home  import views as home_views
 from users import views as users_views
+from game  import views as game_views
 
 urlpatterns = [
     re_path('^/?$',                home_views.index),
     re_path('^about/?$',           home_views.about),
        path('admin',               admin.site.urls),
+       path('game',                include('game.urls')),
        path('home',                include('home.urls')),
-       path('welcome/video_intro', home_views.video_intro),
     re_path('^login/?$',           users_views.sign_in),
     re_path('^logout/?$',          users_views.sign_out),
+    re_path('^match/create/?$',    game_views.match_create),
     re_path('^players/?$',         users_views.index),
        path('players/<username>',  users_views.players),
        path('rooms',               include('rooms.urls')),
        path('users',               include('users.urls')),
+       path('welcome/video_intro', home_views.video_intro),
        path('application.css',     render,
            kwargs={
                'template_name': 'application.css',

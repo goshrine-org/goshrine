@@ -31,6 +31,7 @@ ALLOWED_HOSTS = ["127.0.0.1", "goshrine.org"]
 # Application definition
 
 INSTALLED_APPS = [
+    'game.apps.GameConfig',
     'events.apps.EventsConfig',
     'home.apps.HomeConfig',
     'rooms.apps.RoomsConfig',
