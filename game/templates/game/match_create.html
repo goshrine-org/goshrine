@@ -1,3 +1,4 @@
+{% load static %}
 <div class="match_propose">
   <form action="">
   <input type="hidden" name="challenged_player_id" value="1" />
@@ -6,7 +7,7 @@
 
   <table>
     <tr>
-      <td class="label"><label for="black_player_id"><img alt="Black Player" src="/assets/stone_black_19-4201ea9baf02dcc6fd36b3599fb0ba63.png" /></label></td>
+      <td class="label"><label for="black_player_id"><img alt="Black Player" src="{% static "stone_black_19.png" %}" /></label></td>
       <td colspan="2" class="field">
         <select class="black_player_id" name="black_player_id">
           <option value="7333" selected="true">SakeNomiSensei</option>
@@ -15,7 +16,7 @@
       </td>
     </tr>
     <tr>
-      <td class="label"><label for="white_player_id"><img alt="White Player" src="/assets/stone_white_19-564bc3996a3da0bfd2b7ab649312c94e.png" /></label></td>
+      <td class="label"><label for="white_player_id"><img alt="White Player" src="{% static "/stone_white_19.png" %}" /></label></td>
       <td colspan="2" class="field">
       <select class="white_player_id" name="white_player_id">
         <option value="7333">SakeNomiSensei</option>
@@ -64,7 +65,7 @@
     <h2>Byo-Yomi</h2>
     Byo-Yomi periods are extra time periods available to each player after their main time is up.  If this flag is checked, each player will have <i>five</i> Byo-Yomi periods of <i>30 seconds each</i>. If a player moves within the 30 seconds, then that full period will remain.  Only when the player takes up a full period is it removed.
     </div>
-    "><img alt="Help" src="/assets/help-8a3a024f4f0062ceb41ce03b4adb8ab8.png" /></span>
+    "><img alt="Help" src="{% static "help.png" %}" /></span>
     </td>
     <td class="field"><input class="time_param" name="byo_yomi" type="checkbox" value="true" checked="checked">
     </td>
