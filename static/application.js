@@ -10722,7 +10722,7 @@ init:function(room) {
   a[0].scrollTop = a[0].scrollHeight - a.outerHeight();
   $(".online_player div a").live("click", function(a) {
     user_id = $(this).attr("data-id");
-    new goshrine.MatchSettings(user_id, room.room_id);
+    new goshrine.MatchSettings(user_id, room.id);
     a.preventDefault();
   });
 
