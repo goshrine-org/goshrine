@@ -3,7 +3,23 @@
 {% block content %}
 <script type="text/javascript">
   var room;
+  {% if user.is_authenticated %}
+  var currentUser = {
+    "id"                : {{ user.id }},
+    "login"             : "{{ user.login }}",
+    "rank"              : "{{ user.rank }}",
+    "avatar_pic"        : "{{ user.avatar_pic }}",
+    "whr_elo"           : "null",
+    "available"         : {{ user.available|lower }},
+    "user_type"         : "{{ user.user_type }}",
+    "blocked_users"     : "[]",
+    "blocked_by_users"  : "[]",
+    "notice_sounds_flag": {{ user.notice_sounds_flag|lower }},
+    "click_sounds_flag" : {{ user.click_sounds_flag|lower }}
+  };
+  {% else %}
   var currentUser = "guest";
+  {% endif %}
 
   $(document).ready(function(){
     goshrine.init({user:currentUser});
