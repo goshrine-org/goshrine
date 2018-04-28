@@ -43,17 +43,25 @@ Displaying User <b>1&nbsp;-&nbsp;50</b> of <b>18501</b> in total
   {% for p in users.paginator.page_range %}
     {% if forloop.counter == users.number %}
     <em class="current">{{ users.number }}</em>
+    {% elif forloop.counter < users.number and forloop.counter >= users.number|add:"-1" %}
+    <a rel="next" href="/players?page={{ forloop.counter }}">{{ forloop.counter }}</a>
+    {% elif forloop.counter > users.number and forloop.counter <= users.number|add:"1" %}
+    <a rel="next" href="/players?page={{ forloop.counter }}">{{ forloop.counter }}</a>
     {% elif forloop.counter <= 2 %}
     <a rel="next" href="/players?page={{ forloop.counter }}">{{ forloop.counter }}</a>
-    {% elif forloop.counter < users.number and forloop.counter >= users.number|add:"-4" %}
-    <a rel="next" href="/players?page={{ forloop.counter }}">{{ forloop.counter }}</a>
-    {% elif forloop.counter > users.number and forloop.counter <= users.number|add:"4" %}
-    <a rel="next" href="/players?page={{ forloop.counter }}">{{ forloop.counter }}</a>
+      {% if forloop.counter == 2 and users.number > 4 %}
+      <span class="gap">&hellip;</span>
+      {% endif %}
+    {% elif forloop.counter > users.paginator.num_pages|add:"-2" %}
+      {% if forloop.counter == users.paginator.num_pages|add:"-1" %}
+      {% if users.number < users.paginator.num_pages|add:"-3" %}
+      <span class="gap">&hellip;</span>
+      {% endif %}
+      {% endif %}
+    <a href="/players?page={{ forloop.counter }}">{{ forloop.counter }}</a>
     {% endif %}
   {% endfor %}
 
-  <span class="gap">&hellip;</span>
-  <a href="/players?page={{ users.paginator.num_pages }}">{{ users.paginator.num_pages }}</a>
   {% if users.has_next %}
   <a class="next_page" rel="next" href="/players?page={{ users.next_page_number }}">Next &#8594;</a>
   {% else %}
