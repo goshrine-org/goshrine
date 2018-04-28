@@ -42,15 +42,15 @@ def players(request, username):
 def index(request):
     if request.method != 'POST':
         users     = User.objects.all()
-        paginator = Paginator(users, 1)
+        paginator = Paginator(users, 50)
         page      = request.GET.get('page')
         users     = paginator.get_page(page)
 
         context   = {
             'span_start' : 2,
             'span_end'   : 2,
-            'span_before': 2,
-            'span_after' : 2,
+            'span_before': 4,
+            'span_after' : 4,
             'users'      : users
         }
         return render(request, 'users/index.html', context)
