@@ -1,6 +1,7 @@
 django
 django-extensions
 django-channels
+django-mathfilters
 channels-redis
 Pillow
 WhiteNoise

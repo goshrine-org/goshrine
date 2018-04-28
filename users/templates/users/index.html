@@ -1,5 +1,6 @@
 {% extends "base.html" %}
 {% load static %}
+{% load mathfilters %}
 {% block content %}
 <h2>Players</h2>
 <ul class="rounded_shoji userlist">
@@ -43,18 +44,18 @@ Displaying User <b>1&nbsp;-&nbsp;50</b> of <b>18501</b> in total
   {% for p in users.paginator.page_range %}
     {% if forloop.counter == users.number %}
     <em class="current">{{ users.number }}</em>
-    {% elif forloop.counter < users.number and forloop.counter >= users.number|add:"-1" %}
+    {% elif forloop.counter < users.number and forloop.counter >= users.number|sub:span_before %}
     <a rel="next" href="/players?page={{ forloop.counter }}">{{ forloop.counter }}</a>
-    {% elif forloop.counter > users.number and forloop.counter <= users.number|add:"1" %}
+    {% elif forloop.counter > users.number and forloop.counter <= users.number|add:span_after %}
     <a rel="next" href="/players?page={{ forloop.counter }}">{{ forloop.counter }}</a>
-    {% elif forloop.counter <= 2 %}
+    {% elif forloop.counter <= span_start %}
     <a rel="next" href="/players?page={{ forloop.counter }}">{{ forloop.counter }}</a>
-      {% if forloop.counter == 2 and users.number > 4 %}
+      {% if forloop.counter == span_start and users.number > span_start|add:span_before|add:1 %}
       <span class="gap">&hellip;</span>
       {% endif %}
-    {% elif forloop.counter > users.paginator.num_pages|add:"-2" %}
-      {% if forloop.counter == users.paginator.num_pages|add:"-1" %}
-      {% if users.number < users.paginator.num_pages|add:"-3" %}
+    {% elif forloop.counter > users.paginator.num_pages|sub:span_end %}
+      {% if forloop.counter == users.paginator.num_pages|sub:span_after|add:1 %}
+      {% if users.number < users.paginator.num_pages|sub:span_end|sub:span_after %}
       <span class="gap">&hellip;</span>
       {% endif %}
       {% endif %}

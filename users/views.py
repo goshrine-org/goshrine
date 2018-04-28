@@ -45,7 +45,15 @@ def index(request):
         paginator = Paginator(users, 1)
         page      = request.GET.get('page')
         users     = paginator.get_page(page)
-        return render(request, 'users/index.html', { 'users': users })
+
+        context   = {
+            'span_start' : 2,
+            'span_end'   : 2,
+            'span_before': 2,
+            'span_after' : 2,
+            'users'      : users
+        }
+        return render(request, 'users/index.html', context)
 
     # User registration is POSTed to '/users', and we handle it here.
     form = UserForm(request.POST)
