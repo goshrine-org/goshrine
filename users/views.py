@@ -1,6 +1,7 @@
 from django.shortcuts import render, redirect
 from django.http import Http404
 from django.contrib.auth import get_user_model, login, authenticate, logout
+from django.core.paginator import Paginator
 from common import flash
 from .forms import UserForm, LoginForm, EditForm
 from django.core.validators import RegexValidator, ValidationError
@@ -40,7 +41,10 @@ def players(request, username):
 
 def index(request):
     if request.method != 'POST':
-        users = User.objects.all()
+        users     = User.objects.all()
+        paginator = Paginator(users, 1)
+        page      = request.GET.get('page')
+        users     = paginator.get_page(page)
         return render(request, 'users/index.html', { 'users': users })
 
     # User registration is POSTed to '/users', and we handle it here.

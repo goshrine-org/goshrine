@@ -32,4 +32,33 @@
 
 <div class="pagination"><span class="previous_page disabled">&#8592; Previous</span> <em class="current">1</em> <a rel="next" href="/players?page=2">2</a> <a href="/players?page=3">3</a> <a href="/players?page=4">4</a> <a href="/players?page=5">5</a> <a href="/players?page=6">6</a> <a href="/players?page=7">7</a> <a href="/players?page=8">8</a> <a href="/players?page=9">9</a> <span class="gap">&hellip;</span> <a href="/players?page=370">370</a> <a href="/players?page=371">371</a> <a class="next_page" rel="next" href="/players?page=2">Next &#8594;</a></div>
 Displaying User <b>1&nbsp;-&nbsp;50</b> of <b>18501</b> in total
+
+<div class="pagination">
+  {% if users.has_previous %}
+  <a class="previous_page" rel="prev" href="/players?page={{ users.previous_page_number }}">&#8592; Previous</a>
+  {% else %}
+  <span class="previous_page disabled">&#8592; Previous</span>
+  {% endif %}
+
+  {% for p in users.paginator.page_range %}
+    {% if forloop.counter == users.number %}
+    <em class="current">{{ users.number }}</em>
+    {% elif forloop.counter <= 2 %}
+    <a rel="next" href="/players?page={{ forloop.counter }}">{{ forloop.counter }}</a>
+    {% elif forloop.counter < users.number and forloop.counter >= users.number|add:"-4" %}
+    <a rel="next" href="/players?page={{ forloop.counter }}">{{ forloop.counter }}</a>
+    {% elif forloop.counter > users.number and forloop.counter <= users.number|add:"4" %}
+    <a rel="next" href="/players?page={{ forloop.counter }}">{{ forloop.counter }}</a>
+    {% endif %}
+  {% endfor %}
+
+  <span class="gap">&hellip;</span>
+  <a href="/players?page={{ users.paginator.num_pages }}">{{ users.paginator.num_pages }}</a>
+  {% if users.has_next %}
+  <a class="next_page" rel="next" href="/players?page={{ users.next_page_number }}">Next &#8594;</a>
+  {% else %}
+  <span class="next_page disabled">Next &#8594;</span>
+  {% endif %}
+</div>
+
 {% endblock %}
