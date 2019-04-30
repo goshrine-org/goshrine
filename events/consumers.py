@@ -8,13 +8,14 @@ from django.db import transaction
 class TestConsumer(AsyncJsonWebsocketConsumer):
     def __init__(self, *args, **kwargs):
         super().__init__(*args, **kwargs)
-        self._rooms   = set()
+        self._rooms = set()
 
         self._methods = {
-            'room_join' : self.room_join,
-            'room_list' : self.room_list,
-            'room_leave': self.room_leave,
-            'room_chat' : self.room_chat
+            'match_request': self.match_request,
+            'room_join'    : self.room_join,
+            'room_list'    : self.room_list,
+            'room_leave'   : self.room_leave,
+            'room_chat'    : self.room_chat
         }
 
     @database_sync_to_async
@@ -30,6 +31,13 @@ class TestConsumer(AsyncJsonWebsocketConsumer):
             with transaction.atomic():
                 RoomUser.objects.filter(user=user, room=room).first().delete()
                 return RoomUser.objects.filter(user=user, room=room).count()
+
+    @database_sync_to_async
+    def db_user_get(self, user_id):
+        try:
+            return User.objects.get(pk=user_id)
+        except User.DoesNotExist:
+            return None
 
     @database_sync_to_async
     def db_list_room(self, room):
@@ -82,6 +90,32 @@ class TestConsumer(AsyncJsonWebsocketConsumer):
 
         # Handle the request.
         return await method(stream, **payload['arguments'])
+
+    async def match_request(self, stream, target_user_id):
+        user = self.scope.get('user', None)
+        if user is None or not user.is_authenticated:
+            return None
+
+        # We cannot ask ourselves for a match.
+        if user.id == target_user_id:
+            return None
+
+        # Make sure the target user exists.
+        target_user = await self.db_user_get(target_user_id)
+        if target_user is None:
+            return None
+
+        match_request = {
+            'proposed_by_id': user.id
+        }
+
+        response = {
+            'type'         : 'match_requested',
+            'html'         : '<h1>kak</h1>',
+            'game_token'   : 123,
+            'match_request': match_request
+        }
+        await room_xmit_event({'stream': stream, 'payload': response})
 
     async def room_join(self, stream, room_id):
         user  = self.scope.get('user', None)
