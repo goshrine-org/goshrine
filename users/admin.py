@@ -1,5 +1,5 @@
 from django.contrib import admin
-from .models import User
+from .models import User, UserChannels
 
 @admin.register(User)
 
@@ -9,3 +9,5 @@ class UserAdmin(admin.ModelAdmin):
         'bio', 'click_sounds_flag', 'notice_sounds_flag', 'available', 
         'administrator', 'created_at',
     )
+
+admin.site.register(UserChannels)

@@ -2,6 +2,7 @@ from channels.generic.websocket import AsyncJsonWebsocketConsumer
 from channels.db import database_sync_to_async
 from django.db.models import F
 from django.utils import timezone
+from users.models import UserChannels
 from rooms.models import Room, Message, RoomUser
 from django.db import transaction
 
@@ -58,20 +59,37 @@ class TestConsumer(AsyncJsonWebsocketConsumer):
     def db_msg_save(self, user, room, message, time):
         Message.objects.create(text=message, created_at=time, user=user, room=room)
 
+    @database_sync_to_async
+    def db_user_channel_add(self, user, channel):
+        UserChannels.objects.create(user=user, channel=channel)
+
+    @database_sync_to_async
+    def db_user_channel_del(self, user, channel):
+        UserChannels.objects.filter(channel=channel).delete()
+
     def room_to_group(self, room_id):
         return "room_{}".format(room_id)
 
     async def connect(self):
+        user = self.scope.get('user', None)
+
         print('connect')
         # Check if the user is logged in, otherwise, disable the chat.
         #if self.scope["user"].is_anonymous:
         #    await self.close()
 
+        if user.is_authenticated:
+            await self.db_user_channel_add(user, self.channel_name)
+
         await self.accept()
 
     async def disconnect(self, close_code):
+        user = self.scope.get('user', None)
+
         for room_id in list(self._rooms):
             await self.room_leave(room_id, room_id)
+
+        await self.db_user_channel_del(user, self.channel_name)
 
     async def receive_json(self, data):
         if 'stream' not in data or 'payload' not in data:
