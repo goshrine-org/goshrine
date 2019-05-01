@@ -3,4 +3,5 @@ from . import views
 
 app_name = 'game'
 urlpatterns = [
+    path('/<slug:token>/game_for_eidogo', views.game_for_eidogo),
 ]

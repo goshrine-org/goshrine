@@ -1,7 +1,5 @@
 from django.db import models
-from django.db import models
 from django.utils import timezone
-from django.core.validators import validate_slug, MinLengthValidator
 
 class Move(models.Model):
     board       = models.ForeignKey('game.Game', related_name='moves', on_delete=models.CASCADE)
@@ -20,6 +18,8 @@ class Game(models.Model):
     black_capture_count = models.PositiveSmallIntegerField(default=0)
     white_capture_count = models.PositiveSmallIntegerField(default=0)
     last_move    = models.CharField(max_length=4, blank=False)
+    user_done_scoring = models.ForeignKey('users.User', related_name='+', null=True, on_delete=models.CASCADE)
+    resigned_by  = models.ForeignKey('users.User', related_name='+', null=True, on_delete=models.CASCADE)
     komi         = models.DecimalField(max_digits=4, decimal_places=1, default=6.5)
     updated_at   = models.DateTimeField(default=timezone.now)
     game_type    = models.CharField(max_length=16)
