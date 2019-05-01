@@ -86,32 +86,21 @@
   <div class="recent_games main_box">
     <h2 class="main_category">Games</h2>
     <ul id="room_game_list" class="game_list">
-      <ul class="game_summary finished" id="game_967a7ce0">
+      {% for game in games %}
+      <ul class="game_summary finished" id="game_{{ game.token }}">
         <div class="game_summary_left">
-          <a href="http://goshrine.com/g/967a7ce0" target="_blank">
-            <div class="white_player">beep (12k)</div>
-            <div class="black_player winner">Peanut (?)</div>
+          <a href="/g/{{ game.token }}" target="_blank">
+            <div class="white_player">{{ game.white_player.login }} ({{ game.white_player.rank }})</div>
+	    <div class="black_player winner">{{ game.black_player.login }} ({{ game.black_player.rank }})</div>
           </a>
         </div>
 
         <div class="game_summary_right">
-          <div class="result">B+T</div>
-          <div class="board_size">9x9</div>
+          <div class="result">{{ game.result }}</div>
+          <div class="board_size">{{ game.board.size }}x{{ game.board.size }}</div>
         </div>
       </ul>
-
-      <ul class="game_summary finished" id="game_ac48d1d8">
-        <div class="game_summary_left">
-          <a href="http://goshrine.com/g/ac48d1d8" target="_blank">
-            <div class="white_player winner">Gantz (12k)</div>
-            <div class="black_player">candyopulous (18k)</div>
-          </a>
-        </div>
-        <div class="game_summary_right">
-          <div class="result">W+T</div>
-          <div class="board_size">19x19</div>
-        </div>
-      </ul>
+      {% endfor %}
     </ul>
   </div>
 </div>
