@@ -1,0 +1,249 @@
+{% extends "base.html" %}
+{% load static %}
+{% block content %}
+
+<script type="text/javascript">
+    var gameToken = "{{ game.token }}";
+    var roomId = {{ game.room.id }};
+    var serverTimeOffset = -((new Date()) - parseISO8601("2019-04-30T12:53:13Z"));
+    var currentUser = "guest";
+    var gameEventQueue = [];
+    var player;
+
+    function loadGame() {
+        $.getJSON('/game/{{ game.token }}/game_for_eidogo', null, function(data) {
+            $('#loading').hide();
+            initGame(data);
+        });
+    }
+
+    function gamePlayEvent(message) {
+        if (player) {
+            player.receivePublicGameEvent.bind(player)(message)
+        } else {
+            gameEventQueue.push(message);
+        }
+    }
+
+    $(document).ready(function(){
+        goshrine.init({ user: currentUser });
+        loadGame();
+        goshrine.addSubscription("/game/chat/" + gameToken, handleChat);
+    });
+
+    function initGame(json) {
+        window.game = json.game;
+        var turnStart = game.turn_started_at;
+        var turnStartedAt = turnStart != null ? parseISO8601(turnStart) - serverTimeOffset : null;
+        var observer = currentUser.id != game.black_player_id && currentUser.id != game.white_player_id;
+
+        if (!observer) {
+            var playerColor = (currentUser.id == game.white_player_id ? "W" : "B");
+        }
+
+        var mode = 'play';
+        if (game.state == 'scoring') {
+            mode = 'scoring';
+        } else if (observer || game.state == 'finished') {
+            mode = 'view';
+        }
+	      
+        var rules_object = observer ? (new goshrine.ObserverRules()) : (new goshrine.PlayerRules(playerColor, gameToken));
+        var cfg = {
+            sgf: json.sgf,
+            observing: observer,
+            playerColor: playerColor,
+            playerInfo: {
+                whitePlayer: "beep",
+                blackPlayer: "Peanut"
+            },
+            playSounds: currentUser == 'guest' || currentUser.click_sounds_flag,
+            mainTime: game.main_time,
+            turnStartedAt: turnStartedAt,
+            serverTimeOffset: serverTimeOffset,
+            byoYomi: game.byo_yomi,
+            blackSecondsLeft: game.black_seconds_left,
+            whiteSecondsLeft: game.white_seconds_left,
+            showGameInfo: true,
+            scoringInfo: game.scoring_info,
+            container: $('#eidogo-player-' + gameToken)[0], 
+            enableShortcuts: true, 
+            allowUndo: json.allow_undo,
+            theme: "goshrine",
+            renderer: "goshrine",
+            showComments: false,
+            dom: {
+                whiteName: $('#white-name')[0],
+                blackName: $('#black-name')[0],
+                whiteCaptures: $('#white-captures')[0],
+                blackCaptures: $('#black-captures')[0],
+                whiteTime: $('#white-time')[0],
+                blackTime: $('#black-time')[0],
+	        whiteRank: $('#white-rank')[0],
+                blackRank: $('#black-rank')[0],
+                whiteScore: $('#white-score')[0],
+                blackScore: $('#black-score')[0],
+                whiteTerritory: $('#white-territory')[0],
+                blackTerritory: $('#black-territory')[0],
+                acceptScore: $('#accept_score_button')[0],
+                scoringDialog: $('#scoring')[0],
+                territory: $('#territory')[0],
+                score: $('#score')[0],
+                pleaseWait: $('#please_wait')[0],
+                result: $('#result')[0],
+            },
+            extraControls: $('.bottom_links')[0],
+            uniq: gameToken,
+            game_id: game.id,
+            result: game.result,
+            rules: rules_object,
+            mode: mode,
+            gameState: game.state,
+            gameVersion: game.version
+        };
+	    	
+        if (player) {
+            player.reset({});
+        }
+
+        player = new eidogo.Player(cfg);
+	      
+        if(game.state == 'new') {
+            player.pleaseWait("Waiting for players to arrive.");
+            $.post('/game/' + gameToken + '/attempt_start', "");
+        } else if (game.state == 'in-play') {
+            player.last();
+        } else if (game.state == 'scoring') {
+            player.last();
+            player.showScoringInfo(cfg.scoringInfo);
+        } else if (game.state == 'finished') {
+            player.showFinalResult(game.scoring_info, game.result);
+        }
+
+        if(!observer && currentUser.queue_id) {
+            goshrine.addSubscription("/game/private/" + gameToken + '/' + currentUser.queue_id, player.receivePrivateGameEvent.bind(player));
+        }
+
+        // This is just for presence
+        goshrine.addSubscription("/room/" + roomId, handleRoomChat);
+
+        for (var i=0; i< gameEventQueue.length; i++) {
+            player.receivePublicGameEvent.bind(player)(gameEventQueue[i]);
+        }
+        gameEventQueue = [];
+
+        window.sendChatMsg = function() {
+            $.post('/game/' + gameToken + '/chat', {message: $('#chat_input')[0].value})
+            $('#chat_input')[0].value = "";
+        };
+
+    }
+
+
+    function handleRoomChat(message) {
+
+    }
+
+    function handleChat(message) {
+        goshrine.addChatMessage(message.msg);
+    }
+</script>
+
+<div id="main_game">
+  <div id="left_column">  
+    <div id="players">
+      <div class="player main_box">
+        <div class="game_players">
+          <span class="player_name" id="white-name">{{ game.white_player.login }}</span>
+          <span class="player_name" id="black-name">{{ game.black_player.login }}</span>
+        </div>
+        <div>
+          <div class="game_avatar">
+            <a href="/players/{{ game.white_player.login }}" class="avatar">
+            {% if game.white_player.avatar_pic %}
+              <img alt="Kairi.kingdom" src="/photos/{{ game.white_player.id }}/small/{{ game.white_player.avatar_pic }}" />
+            {% else %}
+              <img alt="Nopic" src="{% static "/nopic.jpg" %}" />
+            {% endif %}
+              <img alt="Robot_badge" class="status_icon" src="{% static "robot_badge.png" %}" title="This account is played by a computer program." />
+            </a>
+            <img alt="Stone_white_19" class="player_color" src="{% static "/stone_white_19.png" %}" />
+          </div>
+          <div class="game_avatar">
+            <img alt="Stone_black_19" class="player_color" src="{% static "/stone_black_19.png" %}" />
+            <a href="/players/{{ game.black_player.login }}" class="avatar">
+            {% if game.black_player.avatar_pic %}
+              <img alt="Kairi.kingdom" src="/photos/{{ game.black_player.id }}/small/{{ game.black_player.avatar_pic }}" />
+            {% else %}
+              <img alt="Nopic" src="{% static "/nopic.jpg" %}" />
+            {% endif %}
+            </a>
+          </div>
+        </div>
+        <table class="game_stats">
+          <tr>
+            <td id="white-rank" class="player_rank"></td>
+            <td class="game_stat_label">Rank</td>
+            <td id="black-rank" class="player_rank"></td>
+          </tr>
+          <tr>
+            <td id="white-time" class="time_remaining">?</td>
+            <td id="time_label" class="game_stat_label">Time</td>
+            <td id="black-time" class="time_remaining">?</td>
+          </tr>
+        <tr>
+          <td id="white-captures"></td>
+          <td id="captures_label" class="game_stat_label">Captures</td>
+          <td id="black-captures"></td>          
+        </tr>
+        <tr>
+          <td>6.5</td>
+          <td class="game_stat_label">Komi</td>
+          <td> </td>
+        </tr>
+        <tr id="territory" style="display:none">
+          <td id="white-territory"></td>
+          <td class="game_stat_label">Territory</td>
+          <td id="black-territory"></td>
+        </tr>
+        <tr id="score" style="display:none">
+          <td id="white-score"></td>
+          <td class="game_stat_label">Score</td>
+          <td id="black-score"></td>
+        </tr>
+        <tr>
+	        <td colspan="3" id="result" style="display:none"> </td>
+	      </tr>
+        </table>        
+      </div>
+    </div>
+    
+    <div id="chat">
+      <div id="chat_output">
+      </div>
+      <input type="text" id="chat_input" onkeydown="if(event.keyCode == 13) {sendChatMsg();} event.stopPropagation();" name="chat_input" />
+    </div>
+  </div>
+
+  <div id="right_column">
+    <div id="please_wait">
+    </div>
+    <div id="loading">
+      <img align="center" src="{% static "loading.gif" %}" />
+      Loading...
+    </div>
+
+    <div class="board_top">
+      <span id="current_turn"></span>
+      <div id="scoring" class="rounded_shoji" style="display: none">
+        <p>Please verify the score is correct (it usually is).  If some groups have been misidentified as alive or dead, please correct below by clicking on the misidentified groups.</p>
+	<span id="accept_score_button" class="button gray">Accept Score <img alt="Green-check" height="28px" src="{% static "green-check.png" %}" /></span>
+        <div class='clear'> </div>
+      </div>
+    </div>
+    <div id="eidogo-player-00066770"></div>
+  </div>
+</div>
+<div id="undo_dialog" ></div>
+
+{% endblock %}
