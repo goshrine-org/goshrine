@@ -181,24 +181,26 @@
         </div>
         <table class="game_stats">
           <tr>
-            <td id="white-rank" class="player_rank"></td>
+            <td id="white-rank" class="player_rank">{{ game.white_player.rank }}</td>
             <td class="game_stat_label">Rank</td>
-            <td id="black-rank" class="player_rank"></td>
+            <td id="black-rank" class="player_rank">{{ game.black_player.rank }}</td>
           </tr>
+          {% if game.timed %}
           <tr>
-            <td id="white-time" class="time_remaining">?</td>
+            <td id="white-time" class="time_remaining">{{ game.white_player.seconds_left }}</td>
             <td id="time_label" class="game_stat_label">Time</td>
-            <td id="black-time" class="time_remaining">?</td>
+            <td id="black-time" class="time_remaining">{{ game.black_player.seconds_left }}</td>
           </tr>
+          {% endif %}
         <tr>
-          <td id="white-captures"></td>
+          <td id="white-captures">{{ game.white_capture_count }}</td>
           <td id="captures_label" class="game_stat_label">Captures</td>
-          <td id="black-captures"></td>
+          <td id="black-captures">{{ game.black_capture_count }}</td>
         </tr>
         <tr>
-          <td>6.5</td>
+          <td>{{ game.komi }}</td>
           <td class="game_stat_label">Komi</td>
-          <td> </td>
+          <td></td>
         </tr>
         <tr id="territory" style="display:none">
           <td id="white-territory"></td>
