@@ -26,6 +26,7 @@ urlpatterns = [
     re_path('^/?$',                home_views.index),
     re_path('^about/?$',           home_views.about),
        path('admin',               admin.site.urls),
+       path('g/<token>',           game_views.game),
        path('game',                include('game.urls')),
        path('home',                include('home.urls')),
     re_path('^login/?$',           users_views.sign_in),

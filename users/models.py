@@ -54,7 +54,3 @@ class User(AbstractBaseUser):
     @property
     def is_staff(self):
         return self.administrator
-
-class UserChannels(models.Model):
-    user    = models.ForeignKey('users.User', related_name='channels', on_delete=models.CASCADE)
-    channel = models.CharField(max_length=32, unique=True, blank=False)
