@@ -4,25 +4,101 @@ from django.utils import timezone
 class MatchRequest(models.Model):
     dummy = models.CharField(max_length=1, default='x')
 
+class TerritoryInstanceManager(models.Manager):
+    def territories(self, territory):
+        return super().get_queryset().filter(territory=territory)
+
 class TerritoryBlack(models.Model):
+    objects    = TerritoryInstanceManager()
+
     class Meta:
         unique_together = (('territory', 'coordinate'),)
+
     territory  = models.ForeignKey('game.Territory', related_name='black', on_delete=models.CASCADE)
     coordinate = models.CharField(max_length=2, blank=False, null=False)
 
 class TerritoryWhite(models.Model):
+    objects    = TerritoryInstanceManager()
+
     class Meta:
         unique_together = (('territory', 'coordinate'),)
+
     territory  = models.ForeignKey('game.Territory', related_name='white', on_delete=models.CASCADE)
     coordinate = models.CharField(max_length=2, blank=False, null=False)
 
 class TerritoryDame(models.Model):
+    objects    = TerritoryInstanceManager()
+
     class Meta:
         unique_together = (('territory', 'coordinate'),)
+
     territory  = models.ForeignKey('game.Territory', related_name='dame', on_delete=models.CASCADE)
     coordinate = models.CharField(max_length=2, blank=False, null=False)
 
+class TerritoryManager(models.Manager):
+    def _list_convert(self, values):
+        l = []
+        cur = -1
+        for i, c in list(values):
+            if i > cur:
+                cur = i
+                l.append([c])
+            else:
+                l[-1].append(c)
+        return l
+
+    def black_values(self, board):
+        t = TerritoryBlack.objects.select_related('territory').filter(territory__board=board)
+        t = t.order_by('territory__index')
+        t = t.values('coordinate', index=models.F('territory__index'))
+        return t
+
+    def black_values_list(self, board):
+        t = TerritoryBlack.objects.select_related('territory').filter(territory__board=board)
+        t = t.order_by('territory__index')
+        return t.values_list('territory__index', 'coordinate')
+
+    def white_values(self, board):
+        t = TerritoryWhite.objects.select_related('territory').filter(territory__board=board)
+        t = t.order_by('territory__index')
+        t = t.values('coordinate', index=models.F('territory__index'))
+        return t
+
+    def white_values_list(self, board):
+        t = TerritoryWhite.objects.select_related('territory').filter(territory__board=board)
+        t = t.order_by('territory__index')
+        return t.values_list('territory__index', 'coordinate')
+
+    def dame_values(self, board):
+        t = TerritoryDame.objects.select_related('territory').filter(territory__board=board)
+        t = t.order_by('territory__index')
+        t = t.values('coordinate', index=models.F('territory__index'))
+        return t
+
+    def dame_values_list(self, board):
+        t = TerritoryDame.objects.select_related('territory').filter(territory__board=board)
+        t = t.order_by('territory__index')
+        return t.values_list('territory__index', 'coordinate')
+
+    def black(self, board):
+        return self._list_convert(self.black_values_list(board))
+
+    def white(self, board):
+        return self._list_convert(self.white_values_list(board))
+
+    def dame(self, board):
+        return self._list_convert(self.dame_values_list(board))
+
+    def territories(self, board):
+        return {
+            'black': self.black(board),
+            'white': self.white(board),
+            'dame' : self.dame(board)
+        }
+
 class Territory(models.Model):
+    objects    = TerritoryManager()
+
     board      = models.ForeignKey('game.Board', related_name='territories', on_delete=models.CASCADE)
     index      = models.PositiveSmallIntegerField(blank=False, null=False)
 
