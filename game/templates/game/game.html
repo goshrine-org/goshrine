@@ -160,7 +160,7 @@
           <div class="game_avatar">
             <a href="/players/{{ game.white_player.login }}" class="avatar">
             {% if game.white_player.avatar_pic %}
-              <img alt="Kairi.kingdom" src="/photos/{{ game.white_player.id }}/small/{{ game.white_player.avatar_pic }}" />
+              <img alt="Kairi.kingdom" src="/photos/{{ game.white_player.id }}/thumb/{{ game.white_player.avatar_pic }}" />
             {% else %}
               <img alt="Nopic" src="{% static "/nopic.jpg" %}" />
             {% endif %}
@@ -172,7 +172,7 @@
             <img alt="Stone_black_19" class="player_color" src="{% static "/stone_black_19.png" %}" />
             <a href="/players/{{ game.black_player.login }}" class="avatar">
             {% if game.black_player.avatar_pic %}
-              <img alt="Kairi.kingdom" src="/photos/{{ game.black_player.id }}/small/{{ game.black_player.avatar_pic }}" />
+              <img alt="Kairi.kingdom" src="/photos/{{ game.black_player.id }}/thumb/{{ game.black_player.avatar_pic }}" />
             {% else %}
               <img alt="Nopic" src="{% static "/nopic.jpg" %}" />
             {% endif %}
