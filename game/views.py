@@ -7,6 +7,7 @@ from channels.layers import get_channel_layer
 from asgiref.sync import async_to_sync
 from .forms import MatchCreateForm, MatchProposeForm
 from django.core.validators import RegexValidator, ValidationError
+from users.models import User
 from rooms.models import Room, RoomChannel
 from game.models import Game
 
