@@ -1,5 +1,5 @@
 from django.shortcuts import render
-from django.http import JsonResponse, Http404
+from django.http import HttpResponse, JsonResponse, Http404
 from django.views.decorators.csrf import csrf_exempt
 from django.db import transaction
 from django.db.models import Q
@@ -22,6 +22,19 @@ def game(request, token):
         raise Http404()
 
     return render(request, 'game/game.html', {'game': game})
+
+def game_sgf(request, token):
+    token_validator = RegexValidator("^[a-f0-9]+$")
+
+    try:
+        token_validator(token)
+        game = Game.objects.get(token=token)
+    except (ValidationError, User.DoesNotExist):
+        # Original goshrine.com returns 'Game not found!' in plaintext
+        raise Http404()
+
+    res = HttpResponse(game.sgf(), content_type='application/x-go-sgf; charset=utf-8')
+    return res
 
 def game_for_eidogo(request, token):
     token_validator = RegexValidator("^[a-f0-9]+$")

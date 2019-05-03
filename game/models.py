@@ -1,3 +1,5 @@
+import io
+from itertools import chain
 from django.db import models
 from django.utils import timezone
 
@@ -96,6 +98,23 @@ class TerritoryManager(models.Manager):
             'dame' : self.dame(board)
         }
 
+    def sgf(self, board):
+        sio = io.StringIO()
+
+        # Black territory.
+        sio.write('TB')
+        for c in chain.from_iterable(self.black(board)):
+            sio.write(f'[{c}]')
+
+        # White territory.
+        sio.write('TW')
+        for c in chain.from_iterable(self.white(board)):
+            sio.write(f'[{c}]')
+
+        s = sio.getvalue()
+        sio.close()
+        return s
+
 class Territory(models.Model):
     objects    = TerritoryManager()
 
@@ -117,7 +136,28 @@ class DeadStoneWhite(models.Model):
 class DeadStone(models.Model):
     board      = models.OneToOneField('game.Board', related_name='dead_stones_by_color', on_delete=models.CASCADE)
 
+class HandicapStoneManager(models.Manager):
+    def handicap_stones(self, game):
+        t = HandicapStone.objects.filter(game=game)
+        return t
+
+    def handicap_stones_values_list(self, game):
+        return self.handicap_stones(game).values_list('coordinate')
+
+    def sgf(self, game):
+        sio = io.StringIO()
+
+        sio.write('AB')
+        for c in chain.from_iterable(self.handicap_stones_values_list(game)):
+            sio.write(f'[{c}]')
+
+        s = sio.getvalue()
+        sio.close()
+        return s
+
 class HandicapStone(models.Model):
+    objects = HandicapStoneManager()
+
     class Meta:
         unique_together = (('game', 'coordinate'),)
     game       = models.ForeignKey('game.Game', related_name='handicap_stones', on_delete=models.CASCADE)
@@ -137,7 +177,25 @@ class Board(models.Model):
     size       = models.PositiveSmallIntegerField(blank=False, null=False, default=19)
     ko_pos     = models.CharField(max_length=2, blank=False, null=True)
 
+class MoveManager(models.Manager):
+    def moves(self, game):
+        return Move.objects.filter(game=game).order_by('number')
+
+    def sgf(self, game):
+        turns = "BW"
+        sio   = io.StringIO()
+        for i, move in enumerate(self.moves(game)):
+            coord = move.coordinate
+            if coord == 'pass': coord = ''
+            sio.write(f';{turns[(i + (game.handicap != 0)) % 2]}[{coord}]')
+
+        s = sio.getvalue()
+        sio.close()
+        return s
+
 class Move(models.Model):
+    objects    = MoveManager()
+
     game       = models.ForeignKey('game.Game', related_name='moves', on_delete=models.CASCADE)
     number     = models.PositiveSmallIntegerField(blank=False, null=False)
     coordinate = models.CharField(max_length=4, blank=False, null=False)
@@ -151,6 +209,7 @@ class Score(models.Model):
     black_territory_count = models.PositiveSmallIntegerField(null=False)
     white                 = models.DecimalField(max_digits=8, decimal_places=1, null=False)
     black                 = models.DecimalField(max_digits=8, decimal_places=1, null=False)
+
 
 class Game(models.Model):
     started_at   = models.DateTimeField(default=timezone.now)
@@ -170,7 +229,7 @@ class Game(models.Model):
     result       = models.CharField(max_length=8)
     handicap     = models.PositiveSmallIntegerField(null=False, default=0)
     timed        = models.BooleanField(default=False)
-    main_time    = models.PositiveSmallIntegerField(null=True, default=None, blank=True)
+    main_time    = models.PositiveIntegerField(null=True, default=None, blank=True)
     byo_yomi     = models.BooleanField(null=True, default=None)
     black_seconds_left = models.PositiveIntegerField(null=True, default=None, blank=True)
     white_seconds_left = models.PositiveIntegerField(null=True, default=None, blank=True)
@@ -188,3 +247,29 @@ class Game(models.Model):
     white_player = models.ForeignKey('users.User', related_name='+', on_delete=models.CASCADE)
     byo_yomi_periods = models.PositiveSmallIntegerField(null=True, default=None, blank=True)
     byo_yomi_seconds = models.PositiveSmallIntegerField(null=True, default=None, blank=True)
+
+    def sgf(self):
+        sio = io.StringIO()
+        sio.write('(;FF[4]GM[1]CA[UTF-8]')
+        sio.write('AP[GoShrine:1.0]RU[Japanese]\n')
+        sio.write(f'SZ[{self.board.size}]\n')
+        sio.write(f'H[{self.handicap}]\n')
+        sio.write(f'KM[{self.komi}]\n')
+        sio.write('PC[GoShrine - http://goshrine.org]\n')
+        sio.write(f'PW[{self.white_player.login}]\n')
+        sio.write(f'WR[{self.white_player_rank}]\n')
+        sio.write(f'PB[{self.black_player.login}]\n')
+        sio.write(f'BR[{self.black_player_rank}]\n')
+        # XXX: TODO DT
+        if self.timed:
+            sio.write(f'TM[{self.main_time * 60}]\n')
+            if self.byo_yomi:
+                sio.write(f'OT[{self.byo_yomi_periods}x{self.byo_yomi_seconds} byo-yomi]\n')
+        sio.write(f'RE[{self.result}]\n')
+        if self.handicap != 0:
+            sio.write(HandicapStone.objects.sgf(self) + '\n')
+        sio.write(Move.objects.sgf(self) + '\n')
+        sio.write(Territory.objects.sgf(self.board) + '\n')
+        s = sio.getvalue()
+        sio.close()
+        return s
