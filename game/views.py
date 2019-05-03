@@ -1,5 +1,6 @@
 from django.shortcuts import render
 from django.http import HttpResponse, JsonResponse, Http404
+from django.forms.models import model_to_dict
 from django.views.decorators.csrf import csrf_exempt
 from django.db import transaction
 from django.db.models import Q
@@ -47,16 +48,11 @@ def game_for_eidogo(request, token):
         raise Http404()
 
     s = {}
-    s['dame'] = []
+    s['dame']  = []
     s['white'] = []
     s['black'] = []
     s['dead_stones_by_color'] = { 'black': [], 'white': [] }
-    s['score'] = {
-        'white_territory_count': 10,
-        'black_territory_count': 10,
-        'white': 20,
-        'black': 11,
-    }
+    s['score'] = model_to_dict(game.score, exclude=['id'])
 
     g = {}
     g['black_capture_count'] = game.black_capture_count
@@ -95,7 +91,7 @@ def game_for_eidogo(request, token):
     g['scoring_info']        = s
 
     msg = {}
-    msg['sgf'] = '(;FF[4]GM[1]CA[UTF-8]AP[GoShrine:1.0]RU[Japanese]\nSZ[19]\nHA[9]\nKM[0.5]\nPC[GoShrine - http://goshrine.com]\nPW[Kairi]\nWR[?]\nPB[oxlade]\nBR[?]\nDT[2017-03-25]\nTM[1800]\nOT[5x30 byo-yomi]\nRE[W+14.5]\nAB[dd][jd][pd][dj][jj][pj][dp][jp][pp]\n;W[qf];B[pf];W[pg];B[of];W[qd];B[qc];W[qe];B[pc];W[pn];B[ph];W[og];B[qh];W[qg];B[qm];W[qn];B[pm];W[on];B[np];W[om];B[rn];W[ro];B[rm];W[qp];B[qq];W[rq];B[qr];W[ok];B[oj];W[nj];B[po];W[qo];B[lk];W[ni];B[rj];W[nf];B[nd];W[cn];B[cl];W[cq];B[cp];W[dq];B[fp];W[ep];B[eo];W[eq];B[fo];W[do];B[co];W[dn];B[bn];W[bm];B[bo];W[cm];B[bq];W[br];B[ap];W[an];B[ar];W[bs];B[bl];W[fm];B[fq];W[am];B[dl];W[em];B[nk];W[mk];B[nl];W[ml];B[nm];W[mn];B[ol];W[mm];B[lj];W[nn];B[pk];W[lp];B[mq];W[lq];B[oq];W[jn];B[ko];W[mp];B[mr];W[lr];B[jr];W[iq];B[jq];W[ho];B[er];W[dr];B[ds];W[cr];B[fr];W[ao];B[ip];W[hp];B[hq];W[cf];B[ce];W[df];B[fc];W[ei];B[ch];W[dh];B[di];W[eh];B[ej];W[fj];B[fk];W[gk];B[fi];W[gj];B[cg];W[ff];B[dg];W[eg];B[bf];W[jf];B[de];W[id];B[jc];W[je];B[ic];W[hd];B[ef];W[gg];B[gl];W[fl];B[gi];W[ik];B[fg];W[fh];B[gh];W[fg];B[hj];W[hk];B[kn];W[km];B[kl];W[jm];B[lg];W[lf];B[kg];W[ld];B[ne];W[mg];B[jh];W[ii];B[mh];W[nh];B[ki];W[mi];B[lh];W[mc];B[nc];W[hc];B[lb];W[mb];B[hb];W[gb];B[lc];W[md];B[ja];W[ha];B[ib];W[gc];B[kb];W[li];B[me];W[le];B[mf];W[ng];B[ih];W[hh];B[jg];W[ji];B[fe];W[ge];B[fb];W[fd];B[fa];W[ga];B[ed];W[ob];B[nb];W[na];B[pb];W[pe];B[oc];W[oa];B[pa];W[ma];B[oe];W[rc];B[rb];W[sd];B[sb];W[al];B[ie];W[if];B[bj];W[aj];B[ai];W[ak];B[bi];W[rr];B[gd];W[or];B[pr];W[ms];B[nr];W[rh];B[ri];W[sh];B[si];W[rg];B[sc];W[rd];B[gn];W[hn];B[gm];W[ek];B[ks];W[ns];B[os];W[ls];B[ln];W[no];B[lm];W[ll];B[rs];W[oo];B[op];W[gq];B[hr];W[gp];B[gr];W[kd];B[la];W[kr];B[js];W[dk];B[ck];W[oi];B[pi];W[sn];B[sm];W[so];B[sr];W[sq];B[el];W[fk];B[hl];W[il];B[io];W[in];B[lo];W[mo];B[en];W[dm];B[fd];W[bk];B[cj];W[ss];B[qs];W[sr];B[es];W[hm];B[cs];W[bp];B[go];W[jo];B[kp];W[fn];B[ia];W[he];B[];W[];TW[aq][bq][ap][ar][as][bn][bo][co][cp][dp][gf][hf][hg][ig][jg][ih][kg][jh][lg][kf][kh][lh][ke][ki][mh][kj][jj][lj][kk][ij][jk][mj][lk][kl][hj][jl][hi][gi][fi][gh][ie][im][re][se][rf][sf][sg][rp][sp]TB[aa][ba][ab][ca][bb][ac][da][cb][bc][ad][ea][db][cc][bd][ae][eb][dc][cd][be][af][ec][ag][bg][ah][bh][cf][df][ci][ee][fs][gs][hs][is][ir][iq][jb][ka][nq][od][ok][or][pl][ql][rl][qk][sl][rk][qj][sk][qi][sj][pq][ps][qa][ra][qb][sa])'
+    msg['sgf'] = game.sgf()
     msg['game'] = g
     msg['allow_undo'] = True
 

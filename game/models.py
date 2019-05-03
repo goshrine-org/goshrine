@@ -210,7 +210,6 @@ class Score(models.Model):
     white                 = models.DecimalField(max_digits=8, decimal_places=1, null=False)
     black                 = models.DecimalField(max_digits=8, decimal_places=1, null=False)
 
-
 class Game(models.Model):
     started_at   = models.DateTimeField(default=timezone.now)
     token        = models.CharField(max_length=8, blank=False)
