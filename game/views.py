@@ -10,7 +10,7 @@ from .forms import MatchCreateForm, MatchProposeForm
 from django.core.validators import RegexValidator, ValidationError
 from users.models import User
 from rooms.models import Room, RoomChannel
-from game.models import Game
+from game.models import Game, Territory
 
 def game(request, token):
     token_validator = RegexValidator("^[a-f0-9]+$")
@@ -48,16 +48,16 @@ def game_for_eidogo(request, token):
         raise Http404()
 
     s = {}
-    s['dame']  = []
-    s['white'] = []
-    s['black'] = []
+    s['dame']  = Territory.objects.dame(game.board)
+    s['white'] = Territory.objects.white(game.board)
+    s['black'] = Territory.objects.black(game.board)
     s['dead_stones_by_color'] = { 'black': [], 'white': [] }
     s['score'] = model_to_dict(game.score, exclude=['id'])
 
     g = {}
     g['black_capture_count'] = game.black_capture_count
     g['black_player_id']     = game.black_player.id
-    g['black_player_rank']   = game.black_player.rank
+    g['black_player_rank']   = game.black_player_rank
     g['black_seconds_left']  = game.black_seconds_left
     g['byo_yomi']            = game.byo_yomi
     g['finished_at']         = game.finished_at
@@ -86,7 +86,7 @@ def game_for_eidogo(request, token):
     g['version']             = game.version
     g['white_capture_count'] = game.white_capture_count
     g['white_player_id']     = game.white_player.id
-    g['white_player_rank']   = game.white_player.rank
+    g['white_player_rank']   = game.white_player_rank
     g['white_seconds_left']  = game.white_seconds_left
     g['scoring_info']        = s
 

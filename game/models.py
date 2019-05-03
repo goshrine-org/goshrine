@@ -210,6 +210,18 @@ class Score(models.Model):
     white                 = models.DecimalField(max_digits=8, decimal_places=1, null=False)
     black                 = models.DecimalField(max_digits=8, decimal_places=1, null=False)
 
+class MessageManager(models.Manager):
+    def messages(self, game):
+        return Message.objects.filter(game=game).order_by('created_at')
+
+class Message(models.Model):
+    objects    = MessageManager()
+
+    created_at = models.DateTimeField(default=timezone.now)
+    text       = models.CharField(max_length=200)
+    user       = models.ForeignKey('users.User', on_delete=models.CASCADE, related_name='messages')
+    game       = models.ForeignKey('game.Game', on_delete=models.CASCADE, related_name='messages')
+
 class Game(models.Model):
     started_at   = models.DateTimeField(default=timezone.now)
     token        = models.CharField(max_length=8, blank=False)
