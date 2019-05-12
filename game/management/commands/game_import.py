@@ -38,16 +38,18 @@ class Command(BaseCommand):
         del(game['handicap_stones'], game['white_player'], game['black_player'])
         del(game['subscribed_users'], game['board_size'])
 
-        # Fix users
-        game['black_player_id'] = 1
-        game['white_player_id'] = 1
         game['match_request_id'] = None
-        print(game)
+
+        if game['timed'] is None: game['timed'] = False
+        if game['user_done_scoring'] is not None:
+            game['user_done_scoring_id'] = int(game['user_done_scoring'])
+            del(game['user_done_scoring'])
 
         # If there is a score, create or get it first, and add it back to
         # the game definition.
-        game['score'], created = self.score_add(score)
-        print(f"game score: {game['score']}")
+        if score:
+            game['score'], created = self.score_add(score)
+            print(f"game score: {game['score']}")
 
         # First we create the game definition in the database.
         game = Game.objects.create(**game)

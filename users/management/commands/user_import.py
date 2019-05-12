@@ -19,7 +19,6 @@ class Command(BaseCommand):
             users = json.load(f)
 
             for user in users:
-                if user['id'] == 1: continue
                 if 'user_type' not in user or user['user_type'] is None: user['user_type'] = 'user'
                 if user['avatar_pic'] is None: user['avatar_pic'] = ''
                 print(f"Creating user {user['id']}...")

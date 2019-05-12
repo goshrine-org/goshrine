@@ -18,6 +18,16 @@ class MatchProposeForm(forms.Form):
     def clean(self):
         cleaned_data = super().clean()
 
+        black_player_id      = cleaned_data.get('black_player_id')
+        white_player_id      = cleaned_data.get('white_player_id')
+        challenged_player_id = cleaned_data.get('challenged_player_id')
+
+        if black_player_id == white_player_id:
+            raise forms.ValidationError('black and white players are the same.', code='invalid')
+
+        if challenged_player_id not in (black_player_id, white_player_id):
+            raise forms.ValidationError('challenged player is neither black nor white.', code='invalid')
+
         timed     = cleaned_data.get('timed')
         main_time = cleaned_data.get('main_time')
         byo_yomi  = cleaned_data.get('byo_yomi')

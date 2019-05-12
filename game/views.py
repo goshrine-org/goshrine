@@ -10,7 +10,9 @@ from .forms import MatchCreateForm, MatchProposeForm
 from django.core.validators import RegexValidator, ValidationError
 from users.models import User
 from rooms.models import Room, RoomChannel
-from game.models import Game, Territory
+from game.models import Board, Game, Territory, MatchRequest
+
+VERSION=1000
 
 def game(request, token):
     token_validator = RegexValidator("^[a-f0-9]+$")
@@ -52,7 +54,9 @@ def game_for_eidogo(request, token):
     s['white'] = Territory.objects.white(game.board)
     s['black'] = Territory.objects.black(game.board)
     s['dead_stones_by_color'] = { 'black': [], 'white': [] }
-    s['score'] = model_to_dict(game.score, exclude=['id'])
+
+    if game.score:
+        s['score'] = model_to_dict(game.score, exclude=['id'])
 
     g = {}
     g['black_capture_count'] = game.black_capture_count
@@ -126,6 +130,35 @@ def match_create(request):
     }
     return render(request, 'game/match_create.html', context)
 
+def _game_create(match, black, white):
+    token = 123
+
+    game = Game.objects.create(
+        token=token,
+        match_request=match,
+        game_type='playervsplayer',
+        handicap=match.handicap,
+        timed=match.timed,
+        main_time=match.main_time,
+        byo_yomi=match.byo_yomi,
+        room_id=match.room_id,
+        white_player_rank=white.rank,
+        black_player_rank=black.rank,
+        black_player=black,
+        white_player=white,
+        byo_yomi_periods=5,
+        byo_yomi_seconds=30,
+        version=VERSION
+    )
+
+    board = Board.objects.create(
+        go_game=game,
+        size=match.board_size,
+        ko_pos=None
+    )
+
+    return game, board
+
 @csrf_exempt
 def match_propose(request):
     if request.method != 'GET':
@@ -138,8 +171,24 @@ def match_propose(request):
     if request.user is None or not request.user.is_authenticated:
         raise Http404()
 
+#    /match/propose?challenged_player_id=1&room_id=1&black_player_id=2&white_player_id=1&board_size=19&handicap=0&timed=true&main_time=30&byo_yomi=true
     room_id              = form.cleaned_data['room_id']
     challenged_player_id = form.cleaned_data['challenged_player_id']
+    black_player_id      = form.cleaned_data['black_player_id']
+    white_player_id      = form.cleaned_data['white_player_id']
+    board_size           = form.cleaned_data['board_size']
+    handicap             = form.cleaned_data['handicap']
+    timed                = form.cleaned_data['timed']
+    main_time            = form.cleaned_data['main_time']
+    byo_yomi             = form.cleaned_data['byo_yomi']
+
+    # We cannot challenge ourself.
+    if request.user.id == challenged_player_id:
+        raise Http404()
+
+    # The requesting user must be either black or white.
+    if request.user.id not in (black_player_id, white_player_id):
+        raise Http404()
 
     # Check if the room and the challenged player exist.  If not we simply
     # 404 at this time.
@@ -148,11 +197,44 @@ def match_propose(request):
         with transaction.atomic():
             room = Room.objects.get(pk=room_id)
             cp   = User.objects.get(pk=challenged_player_id)
+
+            match_req = MatchRequest.objects.create(
+                challenged_player_id=challenged_player_id,
+                room_id=room_id,
+                black_player_id=black_player_id,
+                white_player_id=white_player_id,
+                board_size=board_size,
+                handicap=handicap,
+                timed=timed,
+                main_time=main_time,
+                byo_yomi=byo_yomi
+            )
+
+            if request.user.id == black_player_id:
+                game, board = _game_create(match_req, request.user, cp)
+            elif request.user.id == white_player_id:
+                game, board = _game_create(match_req, cp, request.user)
+            else:
+                assert False
     except (User.DoesNotExist, Room.DoesNotExist):
         raise Http404()
 
     # Send the challenge request to the room
     channel_layer = get_channel_layer()
+
+    if request.user.id == black_player_id:
+        color = 'white'
+    else:
+        color = 'black'
+
+    game_info = '{}x{}'.format(board_size, board_size)
+    if handicap != 0:
+        game_info += f' with {handicap} handicap stones.'
+
+    html  = "<p>A match was requested by {}.  You would play {} on {}.</p>"
+    html += f'<button onclick="goshrine.acceptMatch({match_req.id})">Accept</button>'
+    html += f'<button onclick="goshrine.rejectMatch({match_req.id})">Reject</button>'
+    html = html.format(request.user.login, color, game_info)
 
     match_request = {
         'proposed_by_id': request.user.id
@@ -160,7 +242,7 @@ def match_propose(request):
 
     response = {
         'type'         : 'match_requested',
-        'html'         : '<h1>kak</h1>',
+        'html'         : html,
         'game_token'   : 123,
         'match_request': match_request
     }
@@ -183,7 +265,3 @@ def match_propose(request):
 
     params = { 'separators': (',', ':') }
     return JsonResponse(response, safe=False, json_dumps_params=params)
-
-#    /match/propose?challenged_player_id=1&room_id=1&black_player_id=2&white_player_id=1&board_size=19&handicap=0&timed=true&main_time=30&byo_yomi=true
-
-    print(request)

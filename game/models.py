@@ -4,7 +4,15 @@ from django.db import models
 from django.utils import timezone
 
 class MatchRequest(models.Model):
-    dummy = models.CharField(max_length=1, default='x')
+    challenged_player = models.ForeignKey('users.User', on_delete=models.CASCADE, related_name='+')
+    room              = models.ForeignKey('rooms.Room', related_name='+', on_delete=models.CASCADE)
+    black_player      = models.ForeignKey('users.User', on_delete=models.CASCADE, related_name='+')
+    white_player      = models.ForeignKey('users.User', on_delete=models.CASCADE, related_name='+')
+    board_size        = models.PositiveSmallIntegerField(blank=False, null=False, default=19)
+    handicap          = models.PositiveSmallIntegerField(null=False, default=0)
+    timed             = models.BooleanField(default=False)
+    main_time         = models.PositiveIntegerField(null=True, default=None, blank=True)
+    byo_yomi          = models.BooleanField(null=True, default=None, blank=True)
 
 class TerritoryInstanceManager(models.Manager):
     def territories(self, territory):
@@ -219,32 +227,32 @@ class Message(models.Model):
 
     created_at = models.DateTimeField(default=timezone.now)
     text       = models.CharField(max_length=200)
-    user       = models.ForeignKey('users.User', on_delete=models.CASCADE, related_name='messages')
+    user       = models.ForeignKey('users.User', on_delete=models.CASCADE, related_name='game_messages')
     game       = models.ForeignKey('game.Game', on_delete=models.CASCADE, related_name='messages')
 
 class Game(models.Model):
-    started_at   = models.DateTimeField(default=timezone.now)
-    token        = models.CharField(max_length=8, blank=False)
-    state        = models.CharField(max_length=8, blank=False)
+    started_at   = models.DateTimeField(default=None, null=True, blank=True)
+    token        = models.CharField(max_length=8, blank=False, unique=True)
+    state        = models.CharField(max_length=8, default='new')
     turn         = models.CharField(max_length=1, default='b')
     move_number  = models.PositiveSmallIntegerField(default=0)
     black_capture_count = models.PositiveSmallIntegerField(default=0)
     white_capture_count = models.PositiveSmallIntegerField(default=0)
-    last_move    = models.CharField(max_length=4, blank=False)
+    last_move    = models.CharField(max_length=4, null=True, blank=True)
     user_done_scoring = models.ForeignKey('users.User', related_name='+', on_delete=models.CASCADE, null=True, blank=True)
     match_request = models.OneToOneField(MatchRequest, related_name='game', on_delete=models.SET_NULL, null=True, blank=True)
     resigned_by  = models.ForeignKey('users.User', related_name='+', on_delete=models.CASCADE, null=True, blank=True)
     komi         = models.DecimalField(max_digits=8, decimal_places=1, default=6.5)
     updated_at   = models.DateTimeField(default=timezone.now)
     game_type    = models.CharField(max_length=16)
-    result       = models.CharField(max_length=8)
+    result       = models.CharField(max_length=8, null=True, blank=True)
     handicap     = models.PositiveSmallIntegerField(null=False, default=0)
     timed        = models.BooleanField(default=False)
     main_time    = models.PositiveIntegerField(null=True, default=None, blank=True)
-    byo_yomi     = models.BooleanField(null=True, default=None)
+    byo_yomi     = models.BooleanField(null=True, default=None, blank=True)
     black_seconds_left = models.PositiveIntegerField(null=True, default=None, blank=True)
     white_seconds_left = models.PositiveIntegerField(null=True, default=None, blank=True)
-    turn_started_at = models.DateTimeField(default=timezone.now)
+    turn_started_at = models.DateTimeField(default=None, null=True, blank=True)
     room         = models.ForeignKey('rooms.Room', related_name='games', on_delete=models.SET_NULL, null=True, blank=True)
     version      = models.PositiveIntegerField()
     # These are not duplicated of 'white_player.rank' and 'black_player.rank'
@@ -252,8 +260,8 @@ class Game(models.Model):
     # of the current player rank.
     white_player_rank = models.CharField(max_length=5, default='?')
     black_player_rank = models.CharField(max_length=5, default='?')
-    finished_at  = models.DateTimeField(default=None)
-    score        = models.ForeignKey('game.Score', related_name='games', on_delete=models.SET_NULL, null=True, blank=True)
+    finished_at  = models.DateTimeField(default=None, null=True, blank=True)
+    score        = models.ForeignKey('game.Score', related_name='games', on_delete=models.SET_NULL, default=None, null=True, blank=True)
     black_player = models.ForeignKey('users.User', related_name='+', on_delete=models.CASCADE)
     white_player = models.ForeignKey('users.User', related_name='+', on_delete=models.CASCADE)
     byo_yomi_periods = models.PositiveSmallIntegerField(null=True, default=None, blank=True)
