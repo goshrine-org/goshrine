@@ -6,7 +6,11 @@
     var gameToken = "{{ game.token }}";
     var roomId = {{ game.room.id }};
     var serverTimeOffset = -((new Date()) - parseISO8601("2019-04-30T12:53:13Z"));
+    {% if user.is_anonymous %}
     var currentUser = "guest";
+    {% else %}
+    var currentUser = {"id":{{user.id}},"click_sounds_flag":{{user.click_sounds_flag|yesno:"true,false"}}};
+    {% endif %}
     var gameEventQueue = [];
     var player;
 

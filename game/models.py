@@ -226,15 +226,17 @@ class MessageManager(models.Manager):
 class Message(models.Model):
     objects    = MessageManager()
 
-    created_at = models.DateTimeField(default=timezone.now)
+    created_at = models.DateTimeField(default=timezone.now, db_index=True)
     text       = models.CharField(max_length=200)
     user       = models.ForeignKey('users.User', on_delete=models.CASCADE, related_name='game_messages')
     game       = models.ForeignKey('game.Game', on_delete=models.CASCADE, related_name='messages')
 
 class Game(models.Model):
     started_at   = models.DateTimeField(default=None, null=True, blank=True)
-    token        = models.CharField(max_length=32, default=str(uuid.uuid4()), blank=False, unique=True)
+    token        = models.CharField(max_length=32, default=str(uuid.uuid4()), blank=False, unique=True, db_index=True)
     state        = models.CharField(max_length=8, default='new')
+    black_seen   = models.BooleanField(default=False)
+    white_seen   = models.BooleanField(default=False)
     turn         = models.CharField(max_length=1, default='b')
     move_number  = models.PositiveSmallIntegerField(default=0)
     black_capture_count = models.PositiveSmallIntegerField(default=0)
@@ -255,7 +257,7 @@ class Game(models.Model):
     white_seconds_left = models.PositiveIntegerField(null=True, default=None, blank=True)
     turn_started_at = models.DateTimeField(default=None, null=True, blank=True)
     room         = models.ForeignKey('rooms.Room', related_name='games', on_delete=models.SET_NULL, null=True, blank=True)
-    version      = models.PositiveIntegerField()
+    version      = models.PositiveIntegerField(default=0)
     # These are not duplicated of 'white_player.rank' and 'black_player.rank'
     # because they store the rank *at the time the game was played*, instead
     # of the current player rank.

@@ -3,20 +3,18 @@ from django.http import HttpResponse, JsonResponse, Http404
 from django.forms.models import model_to_dict
 from django.views.decorators.csrf import csrf_exempt
 from django.db import transaction
-from django.db.models import Q
 from channels.layers import get_channel_layer
 from asgiref.sync import async_to_sync
 from .forms import MatchCreateForm, MatchProposeForm
 from django.core.validators import RegexValidator, ValidationError
 from users.models import User
 from rooms.models import Room, RoomChannel
-from game.models import Board, Game, Territory, MatchRequest
+from game.models import Board, Game, Move, Territory, MatchRequest
+from django.utils import timezone
 
-VERSION=1000
+token_validator = RegexValidator("^[a-f0-9-]+$")
 
 def game(request, token):
-    token_validator = RegexValidator("^[a-f0-9-]+$")
-
     try:
         token_validator(token)
         game = Game.objects.get(token=token)
@@ -27,8 +25,6 @@ def game(request, token):
     return render(request, 'game/game.html', {'game': game})
 
 def game_sgf(request, token):
-    token_validator = RegexValidator("^[a-f0-9-]+$")
-
     try:
         token_validator(token)
         game = Game.objects.get(token=token)
@@ -40,8 +36,6 @@ def game_sgf(request, token):
     return res
 
 def game_for_eidogo(request, token):
-    token_validator = RegexValidator("^[a-f0-9-]+$")
-
     try:
         token_validator(token)
         game = Game.objects.get(token=token)
@@ -262,7 +256,6 @@ def _game_create(match, black, white):
             white_seconds_left=white_seconds_left,
             byo_yomi_periods=byo_yomi_periods,
             byo_yomi_seconds=byo_yomi_seconds,
-            version=VERSION
         )
 
         board = Board.objects.create(
@@ -311,5 +304,101 @@ def match_accept(request, match_id):
     return redirect(f'/g/{game.token}')
 
 @csrf_exempt
+def move(request, token, coord):
+    if len(coord) > 2 and coord != 'pass':
+        return HttpResponseBadRequest()
+
+    try:
+        token_validator(token)
+
+        with transaction.atomic():
+            game = Game.objects.get(token=token)
+
+            if game.turn == 'b':
+                if game.black_player_id != request.user.id:
+                    raise Http403()
+                game.turn = 'w'
+            elif game.turn == 'w':
+                if game.white_player_id != request.user.id:
+                    raise Http403()
+                game.turn = 'b'
+
+            Move.objects.create(game=game, number=game.move_number, coordinate=coord)
+            game.move_number += 1
+            game.version += 1
+            game.last_move = coord
+            game.updated_at = timezone.now()
+            game.save(update_fields=['turn', 'move_number', 'version', 'last_move', 'updated_at'])
+    except (ValidationError, Game.DoesNotExist):
+        raise Http404()
+
+    channel_layer = get_channel_layer()
+    response = {
+        'action': 'updateBoard',
+        'data'  : {
+            'version'           : game.version,
+            'move'              : game.last_move,
+            'black_seconds_left': game.black_seconds_left,
+            'white_seconds_left': game.white_seconds_left
+        }
+    }
+
+    group = f'game_{game.token}'
+    print(f"    game_started -> {group}")
+    async_to_sync(channel_layer.group_send)(
+            group, {
+                'type'   : 'room.xmit.event',
+                'stream' : f'game_play_{game.token}',
+                'payload': response
+        }
+    )
+
+    params = { 'separators': (',', ':') }
+    return JsonResponse({}, safe=False, json_dumps_params=params)
+
+@csrf_exempt
 def attempt_start(request, token):
-    print(f'attempt start by {request.user.login} for {token}')
+    if request.method != 'POST':
+        raise Http404()
+
+    try:
+        token_validator(token)
+
+        with transaction.atomic():
+            fields = []
+            game   = Game.objects.get(token=token)
+
+            if game.black_player_id == request.user.id:
+                game.black_seen = True
+                fields.append("black_seen")
+            elif game.white_player_id == request.user.id:
+                game.white_seen = True
+                fields.append("white_seen")
+
+            if game.black_seen and game.white_seen:
+                game.state = 'in-play'
+                fields.append("state")
+
+            game.save(update_fields=fields)
+    except (ValidationError, Game.DoesNotExist):
+        raise Http404()
+
+    if not(game.black_seen and game.white_seen):
+        return HttpResponse('')
+
+    channel_layer = get_channel_layer()
+    response = {
+        'action': 'game_started'
+    }
+
+    group = f'game_{game.token}'
+    print(f"    game_started -> {group}")
+    async_to_sync(channel_layer.group_send)(
+            group, {
+                'type'   : 'room.xmit.event',
+                'stream' : f'game_play_{game.token}',
+                'payload': response
+        }
+    )
+
+    return HttpResponse('')

@@ -10566,11 +10566,11 @@ goshrine = function() {
       $.each(rooms, function(room_id, handler) {
         /* Fuck you javascript; the dictionary changes number -> string. */
         room_id = Number(room_id);
-        send(room_id, {
+        f.stream(room_id).send({
           "method"   : "room_join",
           "arguments": { "room_id": room_id }
         });
-        send(room_id, {
+        f.stream(room_id).send({
           "method"   : "room_list",
           "arguments": { "room_id": room_id }
         })
@@ -13212,15 +13212,23 @@ goshrine.PlayerRules.prototype = {init:function(a, c) {
   this.gameToken = c;
   this.pendingCaptures = [];
   this.playerColor = a;
-}, coordToPos:function(a) {
+},
+	
+coordToPos:function(a) {
   return String.fromCharCode(97 + a.x) + String.fromCharCode(97 + a.y);
-}, check:function(a, c) {
+},
+	
+check:function(a, c) {
   return 0 > a.x || 0 > a.y || a.x >= this.board.boardSize || a.y >= this.board.boardSize ? !1 : this.board.getStone(a) != this.board.EMPTY ? !1 : c != this.playerColor ? (goshrine.showTemporaryMessage("It's not your turn!"), !1) : ($.post("/game/" + this.gameToken + "/move/" + this.coordToPos(a), null, function(a, b) {
     a.error && goshrine.showTemporaryMessage(a.error);
   }.bind(this), "json"), !1);
-}, apply:function(a, c, d) {
+},
+
+apply:function(a, c, d) {
   this.doCaptures(a, c);
-}, doCaptures:function(a, c) {
+},
+	
+doCaptures:function(a, c) {
   var d = 0 + this.doCapture({x:a.x - 1, y:a.y}, c);
   d += this.doCapture({x:a.x + 1, y:a.y}, c);
   d += this.doCapture({x:a.x, y:a.y - 1}, c);
@@ -13229,7 +13237,9 @@ goshrine.PlayerRules.prototype = {init:function(a, c) {
   0 > d && (c = -c, d = -d);
   c = c == this.board.WHITE ? "W" : "B";
   this.board.captures[c] += d;
-}, doCapture:function(a, c) {
+},
+	
+doCapture:function(a, c) {
   this.pendingCaptures = [];
   if (this.findCaptures(a, c)) {
     return 0;
@@ -13238,7 +13248,9 @@ goshrine.PlayerRules.prototype = {init:function(a, c) {
     this.board.addStone(this.pendingCaptures.pop(), this.board.EMPTY);
   }
   return a;
-}, findCaptures:function(a, c) {
+},
+	
+findCaptures:function(a, c) {
   if (0 > a.x || 0 > a.y || a.x >= this.board.boardSize || a.y >= this.board.boardSize || this.board.getStone(a) == c) {
     return 0;
   }
@@ -13251,7 +13263,9 @@ goshrine.PlayerRules.prototype = {init:function(a, c) {
     }
   }
   return this.pendingCaptures.push(a), this.findCaptures({x:a.x - 1, y:a.y}, c) ? 1 : this.findCaptures({x:a.x + 1, y:a.y}, c) ? 1 : this.findCaptures({x:a.x, y:a.y - 1}, c) ? 1 : this.findCaptures({x:a.x, y:a.y + 1}, c) ? 1 : 0;
-}};
+}
+
+};
 goshrine.ObserverRules = function() {
   this.init();
 };
