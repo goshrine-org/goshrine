@@ -2,16 +2,19 @@ from channels.generic.websocket import AsyncJsonWebsocketConsumer
 from channels.db import database_sync_to_async
 from django.db.models import F
 from django.utils import timezone
-from users.models import UserChannels
-from rooms.models import Room, Message, RoomUser
+from .models import Channel
+from rooms.models import Room, Message, RoomChannel
+from game.models import Game
 from django.db import transaction
 
 class TestConsumer(AsyncJsonWebsocketConsumer):
     def __init__(self, *args, **kwargs):
         super().__init__(*args, **kwargs)
+        self._games = set()
         self._rooms = set()
 
         self._methods = {
+            'game_join'    : self.game_join,
             'match_request': self.match_request,
             'room_join'    : self.room_join,
             'room_list'    : self.room_list,
@@ -20,18 +23,16 @@ class TestConsumer(AsyncJsonWebsocketConsumer):
         }
 
     @database_sync_to_async
-    def user_add_room(self, user, room):
-        if user.is_authenticated:
-            with transaction.atomic():
-                RoomUser.objects.create(user=user, room=room)
-                return RoomUser.objects.filter(user=user, room=room).count()
+    def db_room_user_add(self, room, user, channel):
+        with transaction.atomic():
+            RoomChannel.objects.create(room=room, channel_id=channel)
+            return RoomChannel.objects.filter(room=room, channel__user=user).count()
 
     @database_sync_to_async
-    def user_del_room(self, user, room):
-        if user.is_authenticated:
-            with transaction.atomic():
-                RoomUser.objects.filter(user=user, room=room).first().delete()
-                return RoomUser.objects.filter(user=user, room=room).count()
+    def db_room_user_del(self, room, user, channel):
+        with transaction.atomic():
+            RoomChannel.objects.filter(room=room, channel_id=channel).first().delete()
+            return RoomChannel.objects.filter(room=room, channel__user=user).count()
 
     @database_sync_to_async
     def db_user_get(self, user_id):
@@ -43,55 +44,108 @@ class TestConsumer(AsyncJsonWebsocketConsumer):
     @database_sync_to_async
     def db_list_room(self, room):
         fields_as = ('id', 'login', 'rank', 'avatar_pic', 'user_type', 'available')
-        fields_q  = ('user__' + field for field in fields_as)
+        fields_q  = ('channel__user__' + field for field in fields_as)
         fields_as = { k: F(v) for (k, v) in zip(fields_as, fields_q) }
-        return RoomUser.objects.filter(room=room).values(*fields_q).distinct().values(**fields_as)
+        return RoomChannel.objects.filter(room=room).select_related('channel__user').values(*fields_q).distinct().values(**fields_as)
 
     @database_sync_to_async
     def get_room(self, room_id):
         try:
-            room = Room.objects.get(pk=room_id)
+            return Room.objects.get(pk=room_id)
         except Room.DoesNotExist:
             return None
-        return room
+
+    @database_sync_to_async
+    def db_game_get(self, game_token):
+        try:
+            return Game.objects.get(token=game_token)
+        except Game.DoesNotExist:
+            return None
 
     @database_sync_to_async
     def db_msg_save(self, user, room, message, time):
         Message.objects.create(text=message, created_at=time, user=user, room=room)
 
     @database_sync_to_async
-    def db_user_channel_add(self, user, channel):
-        UserChannels.objects.create(user=user, channel=channel)
+    def db_channel_add(self, user, channel):
+        if user.is_authenticated:
+            Channel.objects.create(user=user, channel=channel)
 
     @database_sync_to_async
-    def db_user_channel_del(self, user, channel):
-        UserChannels.objects.filter(channel=channel).delete()
+    def db_channel_del(self, user, channel):
+        Channel.objects.filter(channel=channel).delete()
+
+    def user_to_group(self, user_id):
+        return f"user_{user_id}"
 
     def room_to_group(self, room_id):
-        return "room_{}".format(room_id)
+        return f"room_{room_id}"
 
-    async def connect(self):
+    @property
+    def username(self):
         user = self.scope.get('user', None)
 
-        print('connect')
+        if user is None or not user.is_authenticated:
+            return '[anonymous]'
+        else:
+            return user.login
+
+    async def connect(self):
+        print('websocket connect event')
+        print(f'    path  : {self.scope["path"]}')
+        if b'x-real-ip' in dict(self.scope['headers']):
+            print(f'    client: {dict(self.scope["headers"])[b"x-real-ip"].decode("ascii")}')
+        else:
+            print(f'    client: {self.scope["client"][0]}')
+        user = self.scope.get('user', None)
+
         # Check if the user is logged in, otherwise, disable the chat.
         #if self.scope["user"].is_anonymous:
         #    await self.close()
 
-        if user.is_authenticated:
-            await self.db_user_channel_add(user, self.channel_name)
-
         await self.accept()
+
+        # For authenticated users, we create a channel group for private
+        # messaging.  A group is used because there can be multiple websocket
+        # connections for the same user.
+        if user is not None and user.is_authenticated:
+            group = self.user_to_group(user.id)
+            await self.channel_layer.group_add(
+                group,
+                self.channel_name
+            )
+            print(f"    {user.login}/{self.channel_name} joined broadcast group {group}")
+
+        await self.db_channel_add(user, self.channel_name)
 
     async def disconnect(self, close_code):
         user = self.scope.get('user', None)
 
+        for game_token in self._games:
+            group = f'game_{game_token}'
+            await self.channel_layer.group_discard(
+                group,
+                self.channel_name
+            )
+            print(f"    {user.login}/{self.channel_name} left broadcast group {group}")
+        self._games = set()
+
         for room_id in list(self._rooms):
             await self.room_leave(room_id, room_id)
 
-        await self.db_user_channel_del(user, self.channel_name)
+        # Depart from the private messaging broadcast group.
+        if user is not None and user.is_authenticated:
+            group = self.user_to_group(user.id)
+            await self.channel_layer.group_discard(
+                group,
+                self.channel_name
+            )
+            print(f"    {user.login}/{self.channel_name} left broadcast group {group}")
+
+        await self.db_channel_del(user, self.channel_name)
 
     async def receive_json(self, data):
+        print(f'receive_json {data}')
         if 'stream' not in data or 'payload' not in data:
             return await self.close()
 
@@ -135,7 +189,39 @@ class TestConsumer(AsyncJsonWebsocketConsumer):
         }
         await room_xmit_event({'stream': stream, 'payload': response})
 
+    async def game_join(self, stream, game_token):
+        print('game_join event')
+        print(f'    user : {self.username}')
+        print(f'    token: {game_token}')
+
+        user = self.scope.get('user', None)
+        game = await self.db_game_get(game_token)
+
+        if game is None: return
+
+        # Create a new channel for the room by converting its name to a group
+        # name and adding it.
+        group = f'game_{game_token}'
+        await self.channel_layer.group_add(
+            group,
+            self.channel_name
+        )
+        self._games.add(game_token)
+        print(f"    {self.username}/{self.channel_name} joined broadcast group {group}")
+
+        response = {
+            'method': 'game_join',
+            'status': 'success'
+        }
+
+        await self.channel_layer.send(self.channel_name, {
+            'type'   : 'room.xmit.event',
+            'stream' : stream,
+            'payload': response
+        })
+
     async def room_join(self, stream, room_id):
+        print(f"room_join[{stream}, {room_id}]")
         user  = self.scope.get('user', None)
         group = self.room_to_group(room_id)
         room  = await self.get_room(room_id)
@@ -145,11 +231,7 @@ class TestConsumer(AsyncJsonWebsocketConsumer):
             return
 
         # Debug log.
-        if user is None or not user.is_authenticated:
-            username = '[anonymous]'
-        else:
-            username = user.login
-        print("[room] '{}' joined room {}".format(username, room_id))
+        print("    {} joined room {}".format(self.username, room_id))
 
         # Create a new channel for the room by converting its name to a group
         # name and adding it.
@@ -157,6 +239,16 @@ class TestConsumer(AsyncJsonWebsocketConsumer):
             group,
             self.channel_name
         )
+        print(f"    {self.username}/{self.channel_name} joined broadcast group {group}")
+
+        # For authenticated users, we also create a room scoped privmsg group.
+        if user is not None and user.is_authenticated:
+            group = f"room_{room_id}_user_{user.id}"
+            await self.channel_layer.group_add(
+                group,
+                self.channel_name
+            )
+            print(f"    {self.username}/{self.channel_name} joined broadcast group {group}")
 
         # Keep track of this room in our set of rooms.
         self._rooms.add(room_id)
@@ -170,7 +262,7 @@ class TestConsumer(AsyncJsonWebsocketConsumer):
         # Flag in the database which room the current user joined, and create
         # an event message.  We don't announce our arrival if we have multiple
         # connections to this room.
-        if await self.user_add_room(user, room) > 1:
+        if await self.db_room_user_add(room, user, self.channel_name) > 1:
             return
 
         # Notify everyone in the group we arrived.
@@ -181,12 +273,12 @@ class TestConsumer(AsyncJsonWebsocketConsumer):
             'avatar_pic': user.avatar_pic,
             'rank'      : user.rank
         }
+
         await self.channel_layer.group_send(group, {
             'type'   : 'room.xmit.event',
             'stream' : stream,
             'payload': response
         })
-
 
     async def room_list(self, stream, room_id):
         # We cannot list a room we haven't joined.
@@ -225,17 +317,13 @@ class TestConsumer(AsyncJsonWebsocketConsumer):
             return None
 
         # Debug log.
-        if user is None or not user.is_authenticated:
-            username = '[anonymous]'
-        else:
-            username = user.login
-        print("[room] '{}' left '{}'".format(username, room_id))
+        print("[room] '{}' left '{}'".format(self.username, room_id))
 
         # If we are a valid authenticated user, we broadcast a part
         # notification to everyone in the room.
         if user and user.is_authenticated:
             # See if we have the room completely, if so, notify.
-            if await self.user_del_room(user, room) == 0:
+            if await self.db_room_user_del(room, user, self.channel_name) == 0:
                 response = {
                     'action'    : 'user_leave',
                     'id'        : user.id,
@@ -251,11 +339,18 @@ class TestConsumer(AsyncJsonWebsocketConsumer):
                     'payload': response
                 })
 
-        # Depart from the broadcast group.
+            privmsg_group = f"room_{room_id}_user_{user.id}"
+            await self.channel_layer.group_discard(
+                privmsg_group,
+                self.channel_name
+            )
+            print(f"    {self.username}/{self.channel_name} left broadcast group {privmsg_group}")
+
         await self.channel_layer.group_discard(
             group,
             self.channel_name
         )
+        print(f"    {self.username}/{self.channel_name} left broadcast group {group}")
         self._rooms.remove(room_id)
 
     async def room_chat(self, stream, room_id, msg):
@@ -298,6 +393,7 @@ class TestConsumer(AsyncJsonWebsocketConsumer):
         })
 
     async def room_xmit_event(self, event):
+        print("xmit:", event)
         await self.send_json({
             'stream' : event['stream'],
             'payload': event['payload']

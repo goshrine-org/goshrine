@@ -10566,25 +10566,31 @@ goshrine = function() {
       $.each(rooms, function(room_id, handler) {
         /* Fuck you javascript; the dictionary changes number -> string. */
         room_id = Number(room_id);
-        f.stream(room_id).send({
+        send(room_id, {
           "method"   : "room_join",
           "arguments": { "room_id": room_id }
         });
-        f.stream(room_id).send({
+        send(room_id, {
           "method"   : "room_list",
           "arguments": { "room_id": room_id }
         })
       });
   }
 
-  function a() {
+  function a(openHandler) {
     console.log("Websocket opened");
     $("#connection_fail").slideUp();
     join_rooms();
+    if (openHandler) {
+        openHandler();
+    }
   }
-  function c() {
+  function c(closeHandler) {
     console.log("Websocket closed");
     $("#connection_fail").delay(500).slideDown();
+    if (closeHandler) {
+        closeHandler();
+    }
   }
   function d(a) {
     lastMsg = a;
@@ -10615,6 +10621,7 @@ goshrine = function() {
 
   return {
   init:function(b) {
+      console.log("goshrine.init()");
       g = b.user;
 
       $("a.login").live("click", function(a) {
@@ -10628,18 +10635,22 @@ goshrine = function() {
       f     = new channels.WebSocketBridge();
   },
 
-  connect:function() {
+  connect:function(openHandler, closeHandler) {
       f.connect("/events");
-      f.socket.addEventListener('open', a);
-      f.socket.addEventListener('close', c);
+      f.socket.addEventListener('open',  function() { a(openHandler); });
+      f.socket.addEventListener('close', function() { c(closeHandler); });
       f.listen();
+
+      // The private message stream is connected immediately for every user.
+      f.demultiplex('user_' + currentUser.id, this.privateMessage);
   },
 
-  addSubscription:function(a, b) {
-      console.log("Added subscription on: " + a);
-      subscriptions[a] = b;
-      f.demultiplex(a, b);
-//    return f.subscribe(a, b);
+  send:function(stream, data) {
+        f.stream(stream).send(data);
+  },
+
+  addSubscription:function(channel, handler) {
+      f.demultiplex(channel, handler);
   },
 
   joinRoom:function(room_id, handler) {
@@ -10665,8 +10676,20 @@ goshrine = function() {
         b.remove();
       });
     }, 5e3);
-  }, addChatMessage:d, privateMessage:function(a) {
-    "match_requested" == a.type ? 0 <= g.blocked_users.indexOf(a.match_request.proposed_by_id) || e(a.html) : "match_accepted" == a.type ? window.location.href = "/g/" + a.game_token : "match_rejected" == a.type && e(a.html);
+  }, addChatMessage:d,
+
+  privateMessage:function(a) {
+    console.log("privateMessage")
+    console.log(a)
+    if (a.type == "match_requested") {
+      if (g.blocked_users.indexOf(a.match_request.proposed_by_id) == -1) {
+        e(a.html);
+      }
+    } else if (a.type == "match_accepted") {
+      window.location.href = "/g/" + a.game_token;
+    } else if (a.type == "march_rejected") {
+      e(a.html);
+    }
   },
 
   replaceChatMessages:function(a) {
@@ -10730,7 +10753,6 @@ init:function(room) {
     this.refreshMemberListViaGET(function() {
       this.refreshChatMessages(callback);
     }.bind(this));
-  //  currentUser.queue_id && goshrine.addSubscription("/user/private/" + currentUser.queue_id, goshrine.privateMessage);
   };
 
   this.join = function() {
@@ -12384,7 +12406,7 @@ eidogo.Rules.prototype = {init:function(a) {
       }.bind(this), "json");
     }
   }, pleaseWait:function(a) {
-    this.dom.pleaseWait.innerHTML = a + ' Please wait...<img align="center" src="/assets/spinner.gif" />';
+    this.dom.pleaseWait.innerHTML = a + ' Please wait...<img align="center" src="/static/spinner.gif" />';
   }, clearWait:function() {
     $("#please_wait").empty();
   }, askForUndo:function() {

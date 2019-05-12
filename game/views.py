@@ -1,4 +1,4 @@
-from django.shortcuts import render
+from django.shortcuts import render, redirect
 from django.http import HttpResponse, JsonResponse, Http404
 from django.forms.models import model_to_dict
 from django.views.decorators.csrf import csrf_exempt
@@ -15,7 +15,7 @@ from game.models import Board, Game, Territory, MatchRequest
 VERSION=1000
 
 def game(request, token):
-    token_validator = RegexValidator("^[a-f0-9]+$")
+    token_validator = RegexValidator("^[a-f0-9-]+$")
 
     try:
         token_validator(token)
@@ -27,7 +27,7 @@ def game(request, token):
     return render(request, 'game/game.html', {'game': game})
 
 def game_sgf(request, token):
-    token_validator = RegexValidator("^[a-f0-9]+$")
+    token_validator = RegexValidator("^[a-f0-9-]+$")
 
     try:
         token_validator(token)
@@ -40,7 +40,7 @@ def game_sgf(request, token):
     return res
 
 def game_for_eidogo(request, token):
-    token_validator = RegexValidator("^[a-f0-9]+$")
+    token_validator = RegexValidator("^[a-f0-9-]+$")
 
     try:
         token_validator(token)
@@ -130,35 +130,6 @@ def match_create(request):
     }
     return render(request, 'game/match_create.html', context)
 
-def _game_create(match, black, white):
-    token = 123
-
-    game = Game.objects.create(
-        token=token,
-        match_request=match,
-        game_type='playervsplayer',
-        handicap=match.handicap,
-        timed=match.timed,
-        main_time=match.main_time,
-        byo_yomi=match.byo_yomi,
-        room_id=match.room_id,
-        white_player_rank=white.rank,
-        black_player_rank=black.rank,
-        black_player=black,
-        white_player=white,
-        byo_yomi_periods=5,
-        byo_yomi_seconds=30,
-        version=VERSION
-    )
-
-    board = Board.objects.create(
-        go_game=game,
-        size=match.board_size,
-        ko_pos=None
-    )
-
-    return game, board
-
 @csrf_exempt
 def match_propose(request):
     if request.method != 'GET':
@@ -171,7 +142,6 @@ def match_propose(request):
     if request.user is None or not request.user.is_authenticated:
         raise Http404()
 
-#    /match/propose?challenged_player_id=1&room_id=1&black_player_id=2&white_player_id=1&board_size=19&handicap=0&timed=true&main_time=30&byo_yomi=true
     room_id              = form.cleaned_data['room_id']
     challenged_player_id = form.cleaned_data['challenged_player_id']
     black_player_id      = form.cleaned_data['black_player_id']
@@ -209,13 +179,6 @@ def match_propose(request):
                 main_time=main_time,
                 byo_yomi=byo_yomi
             )
-
-            if request.user.id == black_player_id:
-                game, board = _game_create(match_req, request.user, cp)
-            elif request.user.id == white_player_id:
-                game, board = _game_create(match_req, cp, request.user)
-            else:
-                assert False
     except (User.DoesNotExist, Room.DoesNotExist):
         raise Http404()
 
@@ -243,7 +206,6 @@ def match_propose(request):
     response = {
         'type'         : 'match_requested',
         'html'         : html,
-        'game_token'   : 123,
         'match_request': match_request
     }
 
@@ -265,3 +227,89 @@ def match_propose(request):
 
     params = { 'separators': (',', ':') }
     return JsonResponse(response, safe=False, json_dumps_params=params)
+
+def _game_create(match, black, white):
+    byo_yomi_periods = None
+    byo_yomi_seconds = None
+
+    if match.timed:
+        black_seconds_left = match.main_time * 60
+        white_seconds_left = match.main_time * 60
+
+        if match.byo_yomi:
+            byo_yomi_periods   = 5
+            byo_yomi_seconds   = 30
+            black_seconds_left += byo_yomi_periods * byo_yomi_seconds
+            white_seconds_left += byo_yomi_periods * byo_yomi_seconds
+    else:
+        black_seconds_left = None
+        white_seconds_left = None
+
+    with transaction.atomic():
+        game = Game.objects.create(
+            match_request=match,
+            game_type='playervsplayer',
+            handicap=match.handicap,
+            timed=match.timed,
+            main_time=match.main_time,
+            byo_yomi=match.byo_yomi,
+            room_id=match.room_id,
+            white_player_rank=white.rank,
+            black_player_rank=black.rank,
+            black_player=black,
+            white_player=white,
+            black_seconds_left=black_seconds_left,
+            white_seconds_left=white_seconds_left,
+            byo_yomi_periods=byo_yomi_periods,
+            byo_yomi_seconds=byo_yomi_seconds,
+            version=VERSION
+        )
+
+        board = Board.objects.create(
+            go_game=game,
+            size=match.board_size,
+            ko_pos=None
+        )
+
+    return game, board
+
+@csrf_exempt
+def match_accept(request, match_id):
+    try:
+        match = MatchRequest.objects.get(pk=match_id)
+    except MatchRequest.DoesNotExist:
+        raise Http404()
+
+    # Ensure the specified match has us as the challenged player.
+    if match.challenged_player_id != request.user.id:
+        raise Http403()
+
+    # Determine the user id of the challenger.
+    if match.challenged_player_id == match.black_player_id:
+        challenger_id = match.white_player_id
+    else:
+        challenger_id = match.black_player_id
+
+    game, board = _game_create(match, match.black_player, match.white_player)
+
+    response = {
+        'type'      : 'match_accepted',
+        'game_token': game.token,
+    }
+
+    # Relay the message to everyone in the group, including ourselves.
+    channel_layer = get_channel_layer()
+    print(f"    match_accepted/{game.token} -> room_{match.room_id}_user_{challenger_id}")
+    async_to_sync(channel_layer.group_send)(
+            f"room_{match.room_id}_user_{challenger_id}", {
+                'type'   : 'room.xmit.event',
+                'stream' : f'user_{challenger_id}',
+                'payload': response
+        }
+    )
+
+    return redirect(f'/g/{game.token}')
+
+@csrf_exempt
+def attempt_start(request, token):
+    print(f'attempt start by {request.user.login} for {token}')

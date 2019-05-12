@@ -1,4 +1,5 @@
 import io
+import uuid
 from itertools import chain
 from django.db import models
 from django.utils import timezone
@@ -232,7 +233,7 @@ class Message(models.Model):
 
 class Game(models.Model):
     started_at   = models.DateTimeField(default=None, null=True, blank=True)
-    token        = models.CharField(max_length=8, blank=False, unique=True)
+    token        = models.CharField(max_length=32, default=str(uuid.uuid4()), blank=False, unique=True)
     state        = models.CharField(max_length=8, default='new')
     turn         = models.CharField(max_length=1, default='b')
     move_number  = models.PositiveSmallIntegerField(default=0)

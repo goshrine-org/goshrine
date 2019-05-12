@@ -17,6 +17,23 @@
         });
     }
 
+    function joinedGame(msg) {
+	console.log('joined')
+        loadGame();
+    }
+
+    function joinGame() {
+	console.log('[game] joining ' + gameToken);
+	stream = 'game_' + gameToken;
+
+        goshrine.send(stream, {
+            "method"   : "game_join",
+            "arguments": { "game_token": gameToken }
+        });
+
+	goshrine.addSubscription(stream, joinedGame);
+    }
+
     function gamePlayEvent(message) {
         if (player) {
             player.receivePublicGameEvent.bind(player)(message)
@@ -27,8 +44,15 @@
 
     $(document).ready(function(){
         goshrine.init({ user: currentUser });
+	{% if game.state == 'finished' %}
+	goshrine.connect()
         loadGame();
-        goshrine.addSubscription("/game/chat/" + gameToken, handleChat);
+	{% else %}
+	goshrine.connect(joinGame)
+	goshrine.addSubscription('game_play_' + gameToken, gamePlayEvent);
+//        goshrine.addSubscription("/game/play/" + gameToken, gamePlayEvent);
+	{% endif %}
+//        goshrine.addSubscription("/game/chat/" + gameToken, handleChat);
     });
 
     function initGame(json) {

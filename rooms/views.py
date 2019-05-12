@@ -1,6 +1,7 @@
 from django.shortcuts import render
 from django.http import JsonResponse, Http404
-from .models import Message, Room
+from django.db.models import F
+from .models import Message, Room, RoomChannel
 from users.models import User
 from django.utils.html import escape
 from django.conf import settings
@@ -10,22 +11,25 @@ def index(request):
     return render(request, 'rooms/index.html', {})
 
 def members(request, room_id):
-    try:
-        room = Room.objects.get(pk=room_id)
-    except Room.DoesNotExist:
-       raise Http404()
+    fields_as = ('id', 'login', 'rank', 'avatar_pic', 'user_type', 'available')
+    fields_q  = ('channel__user__' + field for field in fields_as)
+    fields_as = { k: F(v) for (k, v) in zip(fields_as, fields_q) }
 
-    # XXX: database query inefficient.
+    # Create a JOIN over the roomchannel, channel, and user tables, then pick
+    # the user fields we actually want.
+    rcs = RoomChannel.objects.filter(room=room_id) \
+                     .select_related('channel__user').values(*fields_q) \
+                     .distinct().values(**fields_as)
+
     json_messages = []
-    for user in room.users.values_list('user', flat=True).distinct():
-        user = User.objects.get(pk=user)
+    for user in rcs:
         msg = {}
-        msg['id']         = user.id
-        msg['login']      = user.login
-        msg['rank']       = user.rank
-        msg['avatar_pic'] = user.avatar_pic
+        msg['id']         = user['id']
+        msg['login']      = user['login']
+        msg['rank']       = user['rank']
+        msg['avatar_pic'] = user['avatar_pic']
         msg['user_type']  = ''
-        msg['available']  = user.available
+        msg['available']  = user['available']
         json_messages.append(msg)
 
     params = { 'separators': (',', ':') }
