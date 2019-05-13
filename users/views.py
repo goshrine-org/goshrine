@@ -5,6 +5,7 @@ from django.core.paginator import Paginator
 from common import flash
 from .forms import UserForm, LoginForm, EditForm
 from django.core.validators import RegexValidator, ValidationError
+from game.models import Game
 import itertools
 
 User = get_user_model()
@@ -34,10 +35,14 @@ def players(request, username):
     try:
         username_validator(username)
         target_user = User.objects.get(login=username)
+
+        qs  = Game.objects.filter(black_player_id=target_user.id)
+        qs |= Game.objects.filter(white_player_id=target_user.id)
+        qs  = qs.order_by('-updated_at')[:20]
     except (ValidationError, User.DoesNotExist):
        raise Http404()
 
-    return render(request, 'users/user.html', {'target_user': target_user})
+    return render(request, 'users/user.html', {'target_user': target_user, 'games': list(qs)})
 
 def index(request):
     if request.method != 'POST':

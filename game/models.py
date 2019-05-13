@@ -231,9 +231,12 @@ class Message(models.Model):
     user       = models.ForeignKey('users.User', on_delete=models.CASCADE, related_name='game_messages')
     game       = models.ForeignKey('game.Game', on_delete=models.CASCADE, related_name='messages')
 
+def token_default():
+    return str(uuid.uuid4())
+
 class Game(models.Model):
     started_at   = models.DateTimeField(default=None, null=True, blank=True)
-    token        = models.CharField(max_length=32, default=str(uuid.uuid4()), blank=False, unique=True, db_index=True)
+    token        = models.CharField(max_length=32, default=token_default, blank=False, unique=True, db_index=True)
     state        = models.CharField(max_length=8, default='new')
     black_seen   = models.BooleanField(default=False)
     white_seen   = models.BooleanField(default=False)

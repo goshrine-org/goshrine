@@ -1,5 +1,5 @@
 from django.shortcuts import render, redirect
-from django.http import HttpResponse, JsonResponse, Http404
+from django.http import HttpResponse, HttpResponseForbidden, JsonResponse, Http404
 from django.forms.models import model_to_dict
 from django.views.decorators.csrf import csrf_exempt
 from django.db import transaction
@@ -280,7 +280,7 @@ def match_accept(request, match_id):
 
     # Ensure the specified match has us as the challenged player.
     if match.challenged_player_id != request.user.id:
-        raise Http403()
+        return HttpResponseForbidden()
 
     # Determine the user id of the challenger.
     if match.challenged_player_id == match.black_player_id:
@@ -308,16 +308,77 @@ def match_accept(request, match_id):
 
     return redirect(f'/g/{game.token}')
 
-def board_simulate(game, coord):
+def board_simulate(game, coord=None):
     board = BoardSimulator(game.board.size)
 
     # Reconstruct the board until the current move.
     for move in game.moves.all().order_by('number'):
-        pos = board.translate(move.coordinate)
+        if move.coordinate == 'pass':
+            pos = None
+        else:
+            pos = board.translate(move.coordinate)
         board.move(pos)
 
-    board.move(board.translate(coord))
+    if coord is None:
+        return board
+
+    if coord == 'pass':
+        pos = None
+    else:
+        pos = board.translate(coord)
+    board.move(pos)
+
     print(board)
+    return board
+
+@csrf_exempt
+def mark_group_dead(request, token, coord):
+    if len(coord) > 2:
+        return HttpResponseBadRequest()
+
+    try:
+        token_validator(token)
+
+        with transaction.atomic():
+            game = Game.objects.get(token=token)
+
+            if game.state != 'scoring':
+                return json_response({})
+
+#            board = board_simulate(game)
+
+            print(game.board.dead_stones_by_color.white)
+    except (ValidationError, Game.DoesNotExist):
+        raise Http404()
+
+#    sgf_coord = board.translate(coord)
+#    group = board.group(sgf_coord)
+
+    channel_layer = get_channel_layer()
+    response = {
+        'action': 'setScoring',
+        'data'  : {
+            'white': [],
+            'black': [],
+            'dame' : [],
+            'dead_stones_by_color': {
+                'black': [],
+                'white': []
+            }
+        }
+    }
+
+    group = f'game_{game.token}'
+    print(f"    setScoring -> {group}")
+    async_to_sync(channel_layer.group_send)(
+            group, {
+                'type'   : 'room.xmit.event',
+                'stream' : f'game_play_{game.token}',
+                'payload': response
+        }
+    )
+
+    return json_response({})
 
 @csrf_exempt
 def move(request, token, coord):
@@ -331,6 +392,9 @@ def move(request, token, coord):
         with transaction.atomic():
             fields = ['turn', 'move_number', 'version', 'last_move', 'updated_at']
             game = Game.objects.get(token=token)
+
+            if game.state != 'in-play':
+                return json_response({})
 
             if game.turn == 'b':
                 if game.black_player_id != request.user.id:
@@ -387,12 +451,12 @@ def move(request, token, coord):
         response = {
             'action': 'setScoring',
             'data'  : {
-                'white': 0,
-                'black': 0,
-                'dame' : 0,
+                'white': [],
+                'black': [],
+                'dame' : [],
                 'dead_stones_by_color': {
-                    'black': 0,
-                    'white': 0
+                    'black': [],
+                    'white': []
                 }
             }
         }
@@ -428,7 +492,10 @@ def attempt_start(request, token):
                 game.white_seen = True
                 fields.append("white_seen")
             else:
-                raise Http403()
+                return HttpResponseForbidden()
+
+            if game.state != 'new':
+                return HttpResponseForbidden()
 
             if game.black_seen and game.white_seen:
                 game.state = 'in-play'
@@ -466,6 +533,9 @@ def resign(request, token):
         with transaction.atomic():
             game = Game.objects.get(token=token)
 
+            if game.state != 'in-play':
+                return HttpResponseForbidden()
+
             game.state          = 'finished'
             game.resigned_by_id = request.user.id
             game.updated_at     = timezone.now()
@@ -475,7 +545,7 @@ def resign(request, token):
             elif game.white_player_id == request.user.id:
                 game.result = "B+R"
             else:
-                raise Http403()
+                return HttpResponseForbidden()
 
             game.save(update_fields=['state', 'resigned_by_id', 'updated_at', 'result'])
     except (ValidationError, Game.DoesNotExist):

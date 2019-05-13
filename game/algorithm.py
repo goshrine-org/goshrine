@@ -10,6 +10,7 @@ class Board(object):
         self.ko_coord  = None
         self.last_move = None
         self.captures  = { 'b': 0, 'w': 0 }
+        self.end       = False
 
     def translate(self, coord):
         x = ord(coord[0]) - ord('a')
@@ -127,6 +128,8 @@ class Board(object):
         self.board[coord[1]][coord[0]] = value
 
     def move(self, coord):
+        if coord is None: return self._pass_move()
+
         self.validate(coord)
 
         # We are after validation, so we reset the ko position.
@@ -151,3 +154,13 @@ class Board(object):
         if self.turn == 'b': self.turn = 'w'
         else: self.turn = 'b'
         self.last_move = coord
+
+    def _pass_move(self):
+        self.ko_coord  = None
+
+        if self.last_move == 'pass':
+            self.end = True
+
+        if self.turn == 'b': self.turn = 'w'
+        else: self.turn = 'b'
+        self.last_move = 'pass'
