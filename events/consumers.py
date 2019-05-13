@@ -114,7 +114,7 @@ class TestConsumer(AsyncJsonWebsocketConsumer):
                 group,
                 self.channel_name
             )
-            print(f"    {user.login}/{self.channel_name} joined broadcast group {group}")
+            print(f"    {self.username}/{self.channel_name} joined broadcast group {group}")
 
         await self.db_channel_add(user, self.channel_name)
 
@@ -127,7 +127,7 @@ class TestConsumer(AsyncJsonWebsocketConsumer):
                 group,
                 self.channel_name
             )
-            print(f"    {user.login}/{self.channel_name} left broadcast group {group}")
+            print(f"    {self.username}/{self.channel_name} left broadcast group {group}")
         self._games = set()
 
         for room_id in list(self._rooms):
@@ -140,7 +140,7 @@ class TestConsumer(AsyncJsonWebsocketConsumer):
                 group,
                 self.channel_name
             )
-            print(f"    {user.login}/{self.channel_name} left broadcast group {group}")
+            print(f"    {self.username}/{self.channel_name} left broadcast group {group}")
 
         await self.db_channel_del(user, self.channel_name)
 
