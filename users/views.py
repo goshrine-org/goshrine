@@ -128,7 +128,10 @@ def user(request, user_id):
        raise Http404()
 
     if request.method != 'POST':
-        return render(request, 'users/user.html', {'target_user': target_user})
+        qs  = Game.objects.filter(black_player_id=target_user.id)
+        qs |= Game.objects.filter(white_player_id=target_user.id)
+        qs  = qs.order_by('-updated_at')[:20]
+        return render(request, 'users/user.html', {'target_user': target_user, 'games': list(qs)})
 
     form   = EditForm(request.POST, request.FILES, instance=target_user)
     errors = []

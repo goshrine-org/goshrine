@@ -31,7 +31,7 @@ class User(AbstractBaseUser):
 
     # XXX: TODO https://stackoverflow.com/questions/26309431/django-admin-can-i-define-fields-order
 
-    login              = UsernameField(max_length=28, unique=True)
+    login              = UsernameField(max_length=28, unique=True, db_index=True)
     email              = models.EmailField(max_length=255, unique=True)
     rank               = models.CharField(max_length=5, default='?')
     avatar_pic         = models.CharField(max_length=256, blank=True, default='')
