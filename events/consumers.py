@@ -2,6 +2,7 @@ from channels.generic.websocket import AsyncJsonWebsocketConsumer
 from channels.db import database_sync_to_async
 from django.db.models import F
 from django.utils import timezone
+from django.utils import html
 from .models import Channel
 from rooms.models import Room, Message, RoomChannel
 from game.models import Game
@@ -381,7 +382,7 @@ class TestConsumer(AsyncJsonWebsocketConsumer):
             'msg'   : {
                 'created_at': timestamp.strftime('%Y-%m-%dT%H:%M:%SZ'),
                 'user': user.login,
-                'text': msg
+                'text': html.escape(msg)
             }
         }
 
