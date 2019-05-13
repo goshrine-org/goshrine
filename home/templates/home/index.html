@@ -87,16 +87,24 @@
     <h2 class="main_category">Games</h2>
     <ul id="room_game_list" class="game_list">
       {% for game in games %}
+      {% if game.state == "finished" %}
       <ul class="game_summary finished" id="game_{{ game.token }}">
+      {% else %}
+      <ul class="game_summary inplay" id="game_{{ game.token }}">
+      {% endif %}
         <div class="game_summary_left">
           <a href="/g/{{ game.token }}" target="_blank">
-            <div class="white_player">{{ game.white_player.login }} ({{ game.white_player.rank }})</div>
-	    <div class="black_player winner">{{ game.black_player.login }} ({{ game.black_player.rank }})</div>
+	    <div class="white_player {% if game.result.0 == 'W' %}winner{% endif %}">{{ game.white_player.login }} ({{ game.white_player.rank }})</div>
+	    <div class="black_player {% if game.result.0 == 'B' %}winner{% endif %}">{{ game.black_player.login }} ({{ game.black_player.rank }})</div>
           </a>
         </div>
 
         <div class="game_summary_right">
+          {% if game.state == "finished" %}
           <div class="result">{{ game.result }}</div>
+          {% else %}
+          <div class="result">In-Play</div>
+          {% endif %}
           <div class="board_size">{{ game.board.size }}x{{ game.board.size }}</div>
         </div>
       </ul>

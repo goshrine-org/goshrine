@@ -374,6 +374,8 @@ def attempt_start(request, token):
             elif game.white_player_id == request.user.id:
                 game.white_seen = True
                 fields.append("white_seen")
+            else:
+                raise Http403()
 
             if game.black_seen and game.white_seen:
                 game.state = 'in-play'
@@ -402,3 +404,47 @@ def attempt_start(request, token):
     )
 
     return HttpResponse('')
+
+@csrf_exempt
+def resign(request, token):
+    try:
+        token_validator(token)
+
+        with transaction.atomic():
+            game = Game.objects.get(token=token)
+
+            game.state          = 'finished'
+            game.resigned_by_id = request.user.id
+            game.updated_at     = timezone.now()
+
+            if game.black_player_id == request.user.id:
+                game.result = "W+R"
+            elif game.white_player_id == request.user.id:
+                game.result = "B+R"
+            else:
+                raise Http403()
+
+            game.save(update_fields=['state', 'resigned_by_id', 'updated_at', 'result'])
+    except (ValidationError, Game.DoesNotExist):
+        raise Http404()
+
+    channel_layer = get_channel_layer()
+    response = {
+        'action': 'resignedBy',
+        'data'  : {
+            'result': game.result
+        }
+    }
+
+    group = f'game_{game.token}'
+    print(f"    game_started -> {group}")
+    async_to_sync(channel_layer.group_send)(
+            group, {
+                'type'   : 'room.xmit.event',
+                'stream' : f'game_play_{game.token}',
+                'payload': response
+        }
+    )
+
+    params = { 'separators': (',', ':') }
+    return JsonResponse({}, safe=False, json_dumps_params=params)
