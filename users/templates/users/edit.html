@@ -1,5 +1,6 @@
 {% extends "base.html" %}
 {% load static %}
+{% load goshrine_tags %}
 {% block content %}
 <div class="account_edit_page rounded_shoji">
   <div class="edit_account_left">
@@ -38,7 +39,7 @@
     <div class="name">
       <a href="/players/{{ target_user.login }}" class="avatar">
         {% if target_user.avatar_pic %}
-        <img alt="Kairi.kingdom" src="/photos/{{ target_user.id }}/thumb/{{ target_user.avatar_pic }}" />
+	<img alt="{{ target_user.avatar_pic|splitext|first|capfirst }}" src="/photos/{{ target_user.id }}/thumb/{{ target_user.avatar_pic }}" />
         {% else %}
         <img alt="Nopic" src="{% static "/nopic.jpg" %}" />
         {% endif %}

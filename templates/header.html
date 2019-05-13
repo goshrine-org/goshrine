@@ -1,4 +1,5 @@
 {% load static %}
+{% load goshrine_tags %}
   <div id="connection_fail">Trying to reach goshrine.org...</div>
 
   <div class="header">
@@ -16,7 +17,7 @@
         <a href="/users/{{ user.id }}">
           {{ user.login }}
           {% if user.avatar_pic %}
-            <img alt="Kairi.kingdom" class="small_avatar" src="/photos/{{ user.id }}/thumb/{{ user.avatar_pic }}" />
+            <img alt="{{ user.avatar_pic|splitext|first|capfirst }}" class="small_avatar" src="/photos/{{ user.id }}/thumb/{{ user.avatar_pic }}" />
           {% else %}
              <img alt="Nopic" class="small_avatar" src="{% static "/nopic.jpg" %}" />
           {% endif %}

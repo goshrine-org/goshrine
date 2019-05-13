@@ -1,11 +1,12 @@
 {% extends "base.html" %}
 {% load static %}
+{% load goshrine_tags %}
 {% block content %}
 <div class="profile">
   <div class="profile_left_column">
     {% if target_user.avatar_pic %}
     <a href="/photos/{{ target_user.id }}/original/{{ target_user.avatar_pic }}" class="profile_pic">
-      <img alt="Kairi.kingdom" src="/photos/{{ target_user.id }}/small/{{ target_user.avatar_pic }}" />
+      <img alt="{{ target_user.avatar_pic|splitext|first|capfirst }}" src="/photos/{{ target_user.id }}/small/{{ target_user.avatar_pic }}" />
     </a>
     {% else %}
     <a href="{% static "/nopic.jpg" %}" class="profile_pic">
