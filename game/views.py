@@ -11,6 +11,7 @@ from users.models import User
 from rooms.models import Room, RoomChannel
 from game.models import Board, Game, Move, Territory, MatchRequest
 from django.utils import timezone
+from .algorithm import Board as BoardSimulator, InvalidMoveError
 
 token_validator = RegexValidator("^[a-f0-9-]+$")
 
@@ -307,15 +308,28 @@ def match_accept(request, match_id):
 
     return redirect(f'/g/{game.token}')
 
+def board_simulate(game, coord):
+    board = BoardSimulator(game.board.size)
+
+    # Reconstruct the board until the current move.
+    for move in game.moves.all().order_by('number'):
+        pos = board.translate(move.coordinate)
+        board.move(pos)
+
+    board.move(board.translate(coord))
+    print(board)
+
 @csrf_exempt
 def move(request, token, coord):
     if len(coord) > 2 and coord != 'pass':
         return HttpResponseBadRequest()
 
+    game_end = False
     try:
         token_validator(token)
 
         with transaction.atomic():
+            fields = ['turn', 'move_number', 'version', 'last_move', 'updated_at']
             game = Game.objects.get(token=token)
 
             if game.turn == 'b':
@@ -329,12 +343,22 @@ def move(request, token, coord):
                     return json_response({'error': msg})
                 game.turn = 'b'
 
+            if game.last_move == 'pass' and coord == 'pass':
+                game_end = True
+                game.state = 'scoring'
+                fields.append('state')
+
+            try:
+                board_simulate(game, coord)
+            except InvalidMoveError as e:
+                return json_response({'error': str(e)})
+
             Move.objects.create(game=game, number=game.move_number, coordinate=coord)
             game.move_number += 1
-            game.version += 1
-            game.last_move = coord
-            game.updated_at = timezone.now()
-            game.save(update_fields=['turn', 'move_number', 'version', 'last_move', 'updated_at'])
+            game.version     += 1
+            game.last_move    = coord
+            game.updated_at   = timezone.now()
+            game.save(update_fields=fields)
     except (ValidationError, Game.DoesNotExist):
         raise Http404()
 
@@ -350,7 +374,7 @@ def move(request, token, coord):
     }
 
     group = f'game_{game.token}'
-    print(f"    game_started -> {group}")
+    print(f"    updateBoard -> {group}")
     async_to_sync(channel_layer.group_send)(
             group, {
                 'type'   : 'room.xmit.event',
@@ -359,8 +383,31 @@ def move(request, token, coord):
         }
     )
 
-    params = { 'separators': (',', ':') }
-    return JsonResponse({}, safe=False, json_dumps_params=params)
+    if game_end:
+        response = {
+            'action': 'setScoring',
+            'data'  : {
+                'white': 0,
+                'black': 0,
+                'dame' : 0,
+                'dead_stones_by_color': {
+                    'black': 0,
+                    'white': 0
+                }
+            }
+        }
+
+        group = f'game_{game.token}'
+        print(f"    setScoring -> {group}")
+        async_to_sync(channel_layer.group_send)(
+                group, {
+                    'type'   : 'room.xmit.event',
+                    'stream' : f'game_play_{game.token}',
+                    'payload': response
+            }
+        )
+
+    return json_response({})
 
 @csrf_exempt
 def attempt_start(request, token):

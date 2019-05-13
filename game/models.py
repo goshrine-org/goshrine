@@ -206,7 +206,7 @@ class Move(models.Model):
     objects    = MoveManager()
 
     game       = models.ForeignKey('game.Game', related_name='moves', on_delete=models.CASCADE)
-    number     = models.PositiveSmallIntegerField(blank=False, null=False)
+    number     = models.PositiveSmallIntegerField(blank=False, null=False, db_index=True)
     coordinate = models.CharField(max_length=4, blank=False, null=False)
 
 class Score(models.Model):

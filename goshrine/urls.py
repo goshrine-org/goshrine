@@ -40,10 +40,4 @@ urlpatterns = [
        path('rooms',                       include('rooms.urls')),
        path('users',                       include('users.urls')),
        path('welcome/video_intro',         home_views.video_intro),
-       path('application.css',             render,
-           kwargs={
-               'template_name': 'application.css',
-               'content_type' : 'text/css'
-           }
-       ),
 ] + static('/photos/', document_root='{}/photos/'.format(settings.MEDIA_ROOT))

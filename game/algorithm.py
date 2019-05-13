@@ -104,11 +104,11 @@ class Board(object):
 
         # Occupied; we cannot move here.
         if self.get(coord) is not None:
-            raise InvalidMoveError(f'{coord} is already occupied.')
+            raise InvalidMoveError(f'There already is a stone here.')
 
         # Check if this isn't suicide.
         if self.suicide(coord, color):
-            raise InvalidMoveError(f'{coord} is a suicide move.')
+            raise InvalidMoveError(f'Suicide is not allowed under Japanese rules.')
 
         # Finally we check for basic-ko.  Every time a single stone is taken we
         # set the ko coordinate for the next turn (this one), so we can simply
@@ -117,7 +117,7 @@ class Board(object):
         # error messages: after a single stone was taken, it could be suicide
         # rather than basic-ko preventing the move.
         if self.ko_coord == coord:
-            raise InvalidMoveError(f'{coord} is a basic ko move.')
+            raise InvalidMoveError(f'Cannot retake the ko.')
 
     def get(self, coord):
         return self.board[coord[1]][coord[0]]

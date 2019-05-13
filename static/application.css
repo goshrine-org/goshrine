@@ -1,5 +1,3 @@
-{% load static %}
-
 em {
     font-style: italic
 }
@@ -34,7 +32,7 @@ a:focus,a:active {
 body {
     font-family: 'Open Sans', sans-serif;
     font-size: .9em;
-    background: #fff url({% static "/background.jpg" %}) repeat
+    background: #fff url(/static/background.jpg) repeat
 }
 
 #page_content {
@@ -485,12 +483,12 @@ li.game_summary div div {
 }
 
 .game_summary_left .white_player {
-    background-image: url({% static "tiny_white.png" %});
+    background-image: url(/static/tiny_white.png);
     background-repeat: no-repeat
 }
 
 .game_summary_left .black_player {
-    background-image: url({% static "tiny_black.png" %});
+    background-image: url(/static/tiny_black.png);
     background-repeat: no-repeat
 }
 
@@ -922,7 +920,7 @@ ul.connect_links li a {
 
 .connect_button {
     margin-top: 25px;
-    background-image: url({% static "connect-buttons.png" %});
+    background-image: url(/static/connect-buttons.png);
     overflow: hidden;
     background-repeat: no-repeat;
     padding-left: 40px;
@@ -1249,19 +1247,19 @@ table.game_stats tr td.game_stat_label {
 }
 
 .board.size-19 {
-    background-image: url({% static "/board19.png" %})
+    background-image: url(/static/board19.png)
 }
 
 .board.size-13 {
-    background-image: url({% static "/board13.png" %})
+    background-image: url(/static/board13.png)
 }
 
 .board.size-9 {
-    background-image: url({% static "/board09.png" %})
+    background-image: url(/static/board09.png)
 }
 
 .kaya {
-    background-image: url({% static "/kaya.jpg" %});
+    background-image: url(/static/kaya.jpg);
     -moz-box-shadow: 5px 5px 5px #555;
     -webkit-box-shadow: 5px 5px 5px #555;
     box-shadow: 5px 5px 5px #555
@@ -1299,135 +1297,135 @@ table.game_stats tr td.game_stat_label {
 }
 
 .stone.size9.b {
-    background-image: url({% static "/stone_black_09.png" %})
+    background-image: url(/static/stone_black_09.png)
 }
 
 .stone.size9.w {
-    background-image: url({% static "/stone_white_09.png" %})
+    background-image: url(/static/stone_white_09.png)
 }
 
 .stone.size13.b {
-    background-image: url({% static "/stone_black_13.png" %})
+    background-image: url(/static/stone_black_13.png)
 }
 
 .stone.size13.w {
-    background-image: url({% static "/stone_white_13.png" %})
+    background-image: url(/static/stone_white_13.png)
 }
 
 .stone.size19.w {
-    background-image: url({% static "/stone_white_19.png" %})
+    background-image: url(/static/stone_white_19.png)
 }
 
 .stone.size19.b {
-    background-image: url({% static "/stone_black_19.png" %})
+    background-image: url(/static/stone_black_19.png)
 }
 
 .mark.size9.last {
-    background-image: url({% static "/mark_last_09.png" %})
+    background-image: url(/static/mark_last_09.png)
 }
 
 .mark.size13.last {
-    background-image: url({% static "/mark_last_13.png" %})
+    background-image: url(/static/mark_last_13.png)
 }
 
 .mark.size19.last {
-    background-image: url({% static "/mark_last_19.png" %})
+    background-image: url(/static/mark_last_19.png)
 }
 
 .mark.size9.current {
-    background-image: url({% static "/mark_last_09.png" %})
+    background-image: url(/static/mark_last_09.png)
 }
 
 .mark.size13.current {
-    background-image: url({% static "/mark_last_13.png" %})
+    background-image: url(/static/mark_last_13.png)
 }
 
 .mark.size19.current {
-    background-image: url({% static "/mark_last_19.png" %})
+    background-image: url(/static/mark_last_19.png)
 }
 
 .mark.size9.dame {
-    background-image: url({% static "/mark_square_b_09.png" %})
+    background-image: url(/static/mark_square_b_09.png)
 }
 
 .mark.size13.dame {
-    background-image: url({% static "/mark_square_b_13.png" %})
+    background-image: url(/static/mark_square_b_13.png)
 }
 
 .mark.size19.dame {
-    background-image: url({% static "/mark_square_b_19.png" %})
+    background-image: url(/static/mark_square_b_19.png)
 }
 
 .mark.size9.territory-black {
-    background-image: url({% static "/mark_territory_b_09.png" %})
+    background-image: url(/static/mark_territory_b_09.png)
 }
 
 .mark.size13.territory-black {
-    background-image: url({% static "/mark_territory_b_13.png" %})
+    background-image: url(/static/mark_territory_b_13.png)
 }
 
 .mark.size19.territory-black {
-    background-image: url({% static "/mark_territory_b_19.png" %})
+    background-image: url(/static/mark_territory_b_19.png)
 }
 
 .mark.size9.territory-white {
-    background-image: url({% static "/mark_territory_w_09.png" %})
+    background-image: url(/static/mark_territory_w_09.png)
 }
 
 .mark.size13.territory-white {
-    background-image: url({% static "/mark_territory_w_13.png" %})
+    background-image: url(/static/mark_territory_w_13.png)
 }
 
 .mark.size19.territory-white {
-    background-image: url({% static "/mark_territory_w_19.png" %})
+    background-image: url(/static/mark_territory_w_19.png)
 }
 
 .mark.size9.dead-black {
-    background-image: url({% static "/mark_square_b_09.png" %})
+    background-image: url(/static/mark_square_b_09.png)
 }
 
 .mark.size13.dead-black {
-    background-image: url({% static "/mark_square_b_13.png" %})
+    background-image: url(/static/mark_square_b_13.png)
 }
 
 .mark.size19.dead-black {
-    background-image: url({% static "/mark_square_b_19.png" %})
+    background-image: url(/static/mark_square_b_19.png)
 }
 
 .mark.size9.dead-white {
-    background-image: url({% static "/mark_square_w_09.png" %})
+    background-image: url(/static/mark_square_w_09.png)
 }
 
 .mark.size13.dead-white {
-    background-image: url({% static "/mark_square_w_13.png" %})
+    background-image: url(/static/mark_square_w_13.png)
 }
 
 .mark.size19.dead-white {
-    background-image: url({% static "/mark_square_w_19.png" %})
+    background-image: url(/static/mark_square_w_19.png)
 }
 
 .mark.size9.capture-white {
-    background-image: url({% static "/mark_capture_w_09.png" %})
+    background-image: url(/static/mark_capture_w_09.png)
 }
 
 .mark.size13.capture-white {
-    background-image: url({% static "/mark_capture_w_13.png" %})
+    background-image: url(/static/mark_capture_w_13.png)
 }
 
 .mark.size19.capture-white {
-    background-image: url({% static "/mark_capture_w_19.png" %})
+    background-image: url(/static/mark_capture_w_19.png)
 }
 
 .mark.size9.capture-black {
-    background-image: url({% static "/mark_capture_b_09.png" %})
+    background-image: url(/static/mark_capture_b_09.png)
 }
 
 .mark.size13.capture-black {
-    background-image: url({% static "/mark_capture_b_13.png" %})
+    background-image: url(/static/mark_capture_b_13.png)
 }
 
 .mark.size19.capture-black {
-    background-image: url({% static "/mark_capture_b_19.png" %})
+    background-image: url(/static/mark_capture_b_19.png)
 }
 
 .eidogo-player .board .mark.size9 {
@@ -1474,7 +1472,7 @@ table.game_stats tr td.game_stat_label {
 div#board {
     width: 450px;
     height: 450px;
-    background-image: url({% static "/kaya.jpg" %});
+    background-image: url(/static/kaya.jpg);
     background-repeat: no-repeat
 }
 
@@ -1743,19 +1741,19 @@ div#board {
 }
 
 .nav-button.first {
-    background-image: url({% static "/skip_backward.png" %})
+    background-image: url(/static/skip_backward.png)
 }
 
 .nav-button.back {
-    background-image: url({% static "/back.png" %})
+    background-image: url(/static/back.png)
 }
 
 .nav-button.forward {
-    background-image: url({% static "/play.png" %})
+    background-image: url(/static/play.png)
 }
 
 .nav-button.last {
-    background-image: url({% static "/skip_forward.png" %})
+    background-image: url(/static/skip_forward.png)
 }
 
 .controls {
@@ -1771,7 +1769,7 @@ div#board {
 
 .replay .export {
     float: right;
-    background-image: url({% static "/save_sgf.png" %});
+    background-image: url(/static/save_sgf.png);
     text-indent: -9999px;
     width: 30px;
     height: 30px;
@@ -2822,7 +2820,7 @@ div#board {
     padding: 0px 0 0 0px;
     color: #777;
     z-index: 9999;
-    background: url({% static "/loading.gif" %}) no-repeat;
+    background: url(/static/loading.gif) no-repeat;
     text-indent: -9999px
 }
 
