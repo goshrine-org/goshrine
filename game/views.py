@@ -14,6 +14,10 @@ from django.utils import timezone
 
 token_validator = RegexValidator("^[a-f0-9-]+$")
 
+def json_response(msg):
+    params = { 'separators': (',', ':') }
+    return JsonResponse(msg, safe=False, json_dumps_params=params)
+
 def game(request, token):
     try:
         token_validator(token)
@@ -316,11 +320,13 @@ def move(request, token, coord):
 
             if game.turn == 'b':
                 if game.black_player_id != request.user.id:
-                    raise Http403()
+                    msg = "It's not your turn!"
+                    return json_response({'error': msg})
                 game.turn = 'w'
             elif game.turn == 'w':
                 if game.white_player_id != request.user.id:
-                    raise Http403()
+                    msg = "It's not your turn!"
+                    return json_response({'error': msg})
                 game.turn = 'b'
 
             Move.objects.create(game=game, number=game.move_number, coordinate=coord)
