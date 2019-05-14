@@ -1,11 +1,11 @@
 from django.shortcuts import render, redirect
-from django.http import HttpResponse, HttpResponseForbidden, JsonResponse, Http404
+from django.http import HttpResponse, HttpResponseForbidden, HttpResponseBadRequest, HttpResponseNotAllowed, JsonResponse, Http404
 from django.forms.models import model_to_dict
 from django.views.decorators.csrf import csrf_exempt
 from django.db import transaction
 from channels.layers import get_channel_layer
 from asgiref.sync import async_to_sync
-from .forms import MatchCreateForm, MatchProposeForm
+from .forms import MatchCreateForm, MatchProposeForm, MessageForm
 from django.core.validators import RegexValidator, ValidationError
 from users.models import User
 from rooms.models import Room, RoomChannel
@@ -15,9 +15,9 @@ from .algorithm import Board as BoardSimulator, InvalidMoveError
 
 token_validator = RegexValidator("^[a-f0-9-]+$")
 
-def json_response(msg):
+def json_response(msg, **kwargs):
     params = { 'separators': (',', ':') }
-    return JsonResponse(msg, safe=False, json_dumps_params=params)
+    return JsonResponse(msg, safe=False, json_dumps_params=params, **kwargs)
 
 def game(request, token):
     try:
@@ -107,7 +107,7 @@ def game_for_eidogo(request, token):
 @csrf_exempt
 def match_create(request):
     if request.method != 'POST':
-        raise Http404()
+        return HttpResponseNotAllowed(['POST'])
 
     form = MatchCreateForm(request.POST)
     if not form.is_valid():
@@ -476,7 +476,7 @@ def move(request, token, coord):
 @csrf_exempt
 def attempt_start(request, token):
     if request.method != 'POST':
-        raise Http404()
+        return HttpResponseNotAllowed(['POST'])
 
     try:
         token_validator(token)
@@ -576,10 +576,8 @@ def resign(request, token):
 def messages(request, token):
     try:
         token_validator(token)
-
-        with transaction.atomic():
-            game     = Game.objects.only('token').get(token=token)
-            messages = Message.objects.filter(game_id=game.id).select_related('user').order_by('created_at')
+        game     = Game.objects.only('token').get(token=token)
+        messages = Message.objects.filter(game_id=game.id).select_related('user').order_by('created_at')
     except (ValidationError, Game.DoesNotExist):
         raise Http404()
 
@@ -593,5 +591,45 @@ def messages(request, token):
         }
         json_messages.append(d)
 
-    print(json_messages)
     return json_response(json_messages)
+
+@csrf_exempt
+def chat(request, token):
+    if request.method != 'POST':
+        return HttpResponseNotAllowed(['POST'])
+
+    form = MessageForm(request.POST)
+    if not form.is_valid():
+        return HttpResponseBadRequest(form.errors.as_json(),
+                                      content_type='application/json')
+
+    message = form.cleaned_data['text']
+
+    try:
+        token_validator(token)
+        game = Game.objects.only('token').get(token=token)
+    except (ValidationError, Game.DoesNotExist):
+        raise Http404()
+
+    msg = Message.objects.create(text=message, user_id=request.user.id, game_id=game.id)
+
+    response = {  
+	'msg'   : {
+	    'created_at': msg.created_at.strftime('%Y-%m-%dT%H:%M:%SZ'),
+	    'user'      : msg.user.login,
+	    'text'      : msg.text
+	}
+    }   
+
+    # Relay the message to everyone in the group, including ourselves.
+    group         = f'game_{token}'
+    stream        = f'game_chat_{token}'
+    channel_layer = get_channel_layer()
+    async_to_sync(channel_layer.group_send)(group, {
+	'type'   : 'room.xmit.event',
+	'stream' : stream,
+	'payload': response
+    })  
+    print(f'chat -> {group}')
+
+    return json_response({})

@@ -1,4 +1,10 @@
 from django import forms
+from .models import Message
+
+class MessageForm(forms.ModelForm):
+    class Meta:
+        model  = Message
+        fields = ['text']
 
 class MatchCreateForm(forms.Form):
     room_id              = forms.IntegerField(required=True)

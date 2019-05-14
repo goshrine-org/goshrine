@@ -49,15 +49,11 @@
 
     $(document).ready(function(){
         goshrine.init({ user: currentUser });
-	{% if game.state == 'finished' %}
-	goshrine.connect()
-        loadGame();
-	{% else %}
-	goshrine.connect(joinGame)
-	goshrine.addSubscription('game_play_' + gameToken, gamePlayEvent);
-//        goshrine.addSubscription("/game/play/" + gameToken, gamePlayEvent);
-	{% endif %}
-//        goshrine.addSubscription("/game/chat/" + gameToken, handleChat);
+        goshrine.connect(joinGame)
+        {% if game.state != 'finished' %}
+        goshrine.addSubscription('game_play_' + gameToken, gamePlayEvent);
+        {% endif %}
+        goshrine.addSubscription('game_chat_' + gameToken, handleChat);
     });
 
     function initGame(json) {
@@ -162,7 +158,7 @@
         gameEventQueue = [];
 
         window.sendChatMsg = function() {
-            $.post('/game/' + gameToken + '/chat', {message: $('#chat_input')[0].value})
+            $.post('/game/' + gameToken + '/chat', {text: $('#chat_input')[0].value})
             $('#chat_input')[0].value = "";
         };
 

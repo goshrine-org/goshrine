@@ -1,1 +1,7 @@
 __pycache__
+media/
+staticfiles/
+.venv/
+*.swp
+db.sqlite3
+celerybeat-schedule
