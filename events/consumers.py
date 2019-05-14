@@ -282,7 +282,9 @@ class TestConsumer(AsyncJsonWebsocketConsumer):
             'id'        : user.id,
             'login'     : user.login,
             'avatar_pic': user.avatar_pic,
-            'rank'      : user.rank
+            'user_type' : user.user_type,
+            'rank'      : user.rank,
+            'available' : user.available,
         }
 
         group = f"room_{room.id}"
