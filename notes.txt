@@ -37,3 +37,14 @@ Importing old users
 -------------------
 goshrine=# alter sequence users_user_id_seq restart with 20000;
 
+Building pachi
+--------------
+
+On debian this needs the following packages:
+  libcaffe-cpu-dev
+  libboost-dev
+  libboost-system-dev
+  libgflags-dev
+  libgoogle-glog-dev
+  libprotobuf-dev
+  libatlas-base-dev
