@@ -12,6 +12,7 @@ from rooms.models import Room, RoomChannel
 from game.models import Board, Game, Move, Territory, MatchRequest, Message
 from django.utils import timezone
 from .algorithm import Board as BoardSimulator, InvalidMoveError
+from datetime import timedelta
 
 token_validator = RegexValidator("^[a-f0-9-]+$")
 
@@ -134,7 +135,7 @@ def match_create(request):
 @csrf_exempt
 def match_propose(request):
     if request.method != 'GET':
-        raise Http404()
+        return HttpResponseNotAllowed(['GET'])
 
     form = MatchProposeForm(request.GET)
     if not form.is_valid():
@@ -226,8 +227,7 @@ def match_propose(request):
         'result': f'A challenge has been sent to {cp.login}...'
     }
 
-    params = { 'separators': (',', ':') }
-    return JsonResponse(response, safe=False, json_dumps_params=params)
+    return json_response(response)
 
 def _game_create(match, black, white):
     byo_yomi_periods = None
@@ -275,22 +275,36 @@ def _game_create(match, black, white):
 
 @csrf_exempt
 def match_accept(request, match_id):
-    try:
-        match = MatchRequest.objects.get(pk=match_id)
-    except MatchRequest.DoesNotExist:
-        raise Http404()
+    with transaction.atomic():
+        try:
+            match = MatchRequest.objects.select_related('game').select_for_update().get(pk=match_id)
+        except MatchRequest.DoesNotExist:
+            raise Http404()
 
-    # Ensure the specified match has us as the challenged player.
-    if match.challenged_player_id != request.user.id:
-        return HttpResponseForbidden()
+        try:
+            game = match.game
+        except MatchRequest.game.RelatedObjectDoesNotExist:
+            # We can only accept a match request if there is no associated game
+            # for it in the database.
+            # XXX: race table lock?
+            pass
+        else:
+            return HttpResponseForbidden('Game has been accepted in the past.')
 
-    # Determine the user id of the challenger.
-    if match.challenged_player_id == match.black_player_id:
-        challenger_id = match.white_player_id
-    else:
-        challenger_id = match.black_player_id
+        if timezone.now() > match.created_at + timedelta(seconds=60):
+            return HttpResponseForbidden('Match request expired.')
 
-    game, board = _game_create(match, match.black_player, match.white_player)
+        # Ensure the specified match has us as the challenged player.
+        if match.challenged_player_id != request.user.id:
+            return HttpResponseForbidden('Match was not proposed to us.')
+
+        # Determine the user id of the challenger.
+        if match.challenged_player_id == match.black_player_id:
+            challenger_id = match.white_player_id
+        else:
+            challenger_id = match.black_player_id
+
+        game, board = _game_create(match, match.black_player, match.white_player)
 
     response = {
         'type'      : 'match_accepted',

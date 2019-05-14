@@ -19,7 +19,7 @@ class RoomChannel(models.Model):
     room    = models.ForeignKey('rooms.Room', related_name='channels', on_delete=models.CASCADE)
 
 class Message(models.Model):
-    id         = models.BigIntegerField(unique=True, primary_key=True)
+    id         = models.BigAutoField(unique=True, primary_key=True)
     text       = models.CharField(max_length=200)
     created_at = models.DateTimeField(default=timezone.now)
     user       = models.ForeignKey('users.User', on_delete=models.CASCADE,

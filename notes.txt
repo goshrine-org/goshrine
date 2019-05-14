@@ -32,3 +32,8 @@ However, the problem becomes more complex when multiple daphne servers are
 involved, and only one of them is restarted uncleanly.
 
 celery worker -A goshrine -B -l info --scheduler django_celery_beat.schedulers:DatabaseScheduler
+
+Importing old users
+-------------------
+goshrine=# alter sequence users_user_id_seq restart with 20000;
+

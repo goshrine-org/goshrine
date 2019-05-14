@@ -11,7 +11,7 @@ class RoomsConfig(AppConfig):
         RoomChannel.objects.all().delete()
 
     def ready(self):
-#        try:
+        try:
             return self._ready()
-#        except:
-#            pass
+        except:
+            pass
