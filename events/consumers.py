@@ -233,7 +233,6 @@ class TestConsumer(AsyncJsonWebsocketConsumer):
     async def room_join(self, stream, room_id):
         print(f"room_join[{stream}, {room_id}]")
         user  = self.scope.get('user', None)
-        group = self.room_to_group(room_id)
         room  = await self.get_room(room_id)
 
         # If we don't have this room in our database, we bail.
@@ -245,6 +244,7 @@ class TestConsumer(AsyncJsonWebsocketConsumer):
 
         # Create a new channel for the room by converting its name to a group
         # name and adding it.
+        group = f"room_{room.id}"
         await self.channel_layer.group_add(
             group,
             self.channel_name
@@ -273,6 +273,7 @@ class TestConsumer(AsyncJsonWebsocketConsumer):
         # an event message.  We don't announce our arrival if we have multiple
         # connections to this room.
         if await self.db_room_user_add(room, user, self.channel_name) > 1:
+            print(f"    {user.login} is in room_{room.id} more than once.")
             return
 
         # Notify everyone in the group we arrived.
@@ -284,6 +285,8 @@ class TestConsumer(AsyncJsonWebsocketConsumer):
             'rank'      : user.rank
         }
 
+        group = f"room_{room.id}"
+        print(f"    user_arrive -> {group}")
         await self.channel_layer.group_send(group, {
             'type'   : 'room.xmit.event',
             'stream' : stream,

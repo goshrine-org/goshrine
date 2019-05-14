@@ -37,7 +37,7 @@ INSTALLED_APPS = [
     'home.apps.HomeConfig',
     'rooms.apps.RoomsConfig',
     'users.apps.UsersConfig',
-    'django_celery_beat',
+#    'django_celery_beat',
     'django.contrib.admin',
     'django.contrib.auth',
     'django.contrib.contenttypes',
@@ -98,7 +98,7 @@ CELERY_BROKER_URL   = 'redis://localhost:6379'
 CELERYBEAT_SCHEDULE = {
     'prune-channels': {
         'task'    : 'events.tasks.prune_channels',
-        'schedule': timedelta(seconds=30)
+        'schedule': timedelta(seconds=60)
     },
 }
 

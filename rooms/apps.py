@@ -5,11 +5,13 @@ class RoomsConfig(AppConfig):
     name = 'rooms'
 
     def _ready(self):
-        from .models import RoomUser
-        RoomUser.objects.all().delete()
+        from events.models import Channel
+        from .models import RoomChannel
+        Channel.objects.all().delete()
+        RoomChannel.objects.all().delete()
 
     def ready(self):
-        try:
+#        try:
             return self._ready()
-        except:
-            pass
+#        except:
+#            pass
