@@ -9,7 +9,7 @@ from .forms import MatchCreateForm, MatchProposeForm
 from django.core.validators import RegexValidator, ValidationError
 from users.models import User
 from rooms.models import Room, RoomChannel
-from game.models import Board, Game, Move, Territory, MatchRequest
+from game.models import Board, Game, Move, Territory, MatchRequest, Message
 from django.utils import timezone
 from .algorithm import Board as BoardSimulator, InvalidMoveError
 
@@ -571,3 +571,27 @@ def resign(request, token):
 
     params = { 'separators': (',', ':') }
     return JsonResponse({}, safe=False, json_dumps_params=params)
+
+@csrf_exempt
+def messages(request, token):
+    try:
+        token_validator(token)
+
+        with transaction.atomic():
+            game     = Game.objects.only('token').get(token=token)
+            messages = Message.objects.filter(game_id=game.id).select_related('user').order_by('created_at')
+    except (ValidationError, Game.DoesNotExist):
+        raise Http404()
+
+    json_messages = []
+    for m in messages:
+        d = {
+            'created_at': m.created_at,
+            'text'      : m.text,
+            'user'      : m.user.login,
+            'user_id'   : m.user.id
+        }
+        json_messages.append(d)
+
+    print(json_messages)
+    return json_response(json_messages)

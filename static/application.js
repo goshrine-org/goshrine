@@ -10598,9 +10598,6 @@ goshrine = function() {
       var b = parseISO8601(a.started_at);
       a = '<span class="timestamp">' + b.toTimeStr() + '</span><span class="game_started">' + a.white_player.login + " and " + a.black_player.login + " started a " + a.board_size + "x" + a.board_size + ' <a href="/g/' + a.token + '">game</a>. </span><br />';
     } else {
-      if ("guest" != g && 0 <= g.blocked_users.indexOf(a.user_id)) {
-        return;
-      }
       b = parseISO8601(a.created_at);
       a = '<span class="timestamp">' + b.toTimeStr() + '</span><span class="speaker">' + a.user + "</span>: " + a.text + "<br />";
     }

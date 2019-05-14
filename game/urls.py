@@ -7,5 +7,6 @@ urlpatterns = [
     path('/<slug:token>/attempt_start',                views.attempt_start),
     path('/<slug:token>/move/<slug:coord>',            views.move),
     path('/<slug:token>/mark_group_dead/<slug:coord>', views.mark_group_dead),
+    path('/<slug:token>/messages',                     views.messages),
     path('/<slug:token>/resign',                       views.resign)
 ]
