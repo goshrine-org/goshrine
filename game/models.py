@@ -5,6 +5,7 @@ from django.db import models
 from django.utils import timezone
 
 class MatchRequest(models.Model):
+    id                = models.BigIntegerField(unique=True, primary_key=True)
     challenged_player = models.ForeignKey('users.User', on_delete=models.CASCADE, related_name='+')
     room              = models.ForeignKey('rooms.Room', related_name='+', on_delete=models.CASCADE)
     black_player      = models.ForeignKey('users.User', on_delete=models.CASCADE, related_name='+')
@@ -205,6 +206,7 @@ class MoveManager(models.Manager):
 class Move(models.Model):
     objects    = MoveManager()
 
+    id         = models.BigIntegerField(unique=True, primary_key=True)
     game       = models.ForeignKey('game.Game', related_name='moves', on_delete=models.CASCADE)
     number     = models.PositiveSmallIntegerField(blank=False, null=False, db_index=True)
     coordinate = models.CharField(max_length=4, blank=False, null=False)
@@ -226,6 +228,7 @@ class MessageManager(models.Manager):
 class Message(models.Model):
     objects    = MessageManager()
 
+    id         = models.BigIntegerField(unique=True, primary_key=True)
     created_at = models.DateTimeField(default=timezone.now, db_index=True)
     text       = models.CharField(max_length=200)
     user       = models.ForeignKey('users.User', on_delete=models.CASCADE, related_name='game_messages')
@@ -235,6 +238,7 @@ def token_default():
     return str(uuid.uuid4())
 
 class Game(models.Model):
+    id           = models.BigIntegerField(unique=True, primary_key=True)
     started_at   = models.DateTimeField(default=None, null=True, blank=True)
     token        = models.CharField(max_length=32, default=token_default, blank=False, unique=True, db_index=True)
     state        = models.CharField(max_length=8, default='new')
