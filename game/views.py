@@ -63,14 +63,17 @@ def game_for_eidogo(request, token):
     g['black_player_rank']   = game.black_player_rank
     g['black_seconds_left']  = game.black_seconds_left
     g['byo_yomi']            = game.byo_yomi
-    g['finished_at']         = game.finished_at
+    if game.state != 'finished':
+        g['finished_at']     = None
+    else:
+        g['finished_at']     = game.updated_at.strftime('%Y-%m-%d')
     g['game_type']           = game.game_type
     g['handicap']            = game.handicap
     g['id']                  = game.board.id
     g['komi']                = game.komi
     g['last_move']           = game.last_move
     g['main_time']           = game.main_time
-    g['match_request_id']    = 1 # XXX
+    g['match_request_id']    = game.match_request_id
     g['move_number']         = game.move_number
     g['resigned_by_id']      = game.resigned_by_id
     g['result']              = game.result
@@ -98,8 +101,7 @@ def game_for_eidogo(request, token):
     msg['game'] = g
     msg['allow_undo'] = True
 
-    params = { 'separators': (',', ':') }
-    return JsonResponse(msg, safe=False, json_dumps_params=params)
+    return json_response(msg)
 
 # XXX: called by application.js shit.  Later we need to set the CSRF
 # cookie.

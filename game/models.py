@@ -270,7 +270,6 @@ class Game(models.Model):
     # of the current player rank.
     white_player_rank = models.CharField(max_length=5, default='?')
     black_player_rank = models.CharField(max_length=5, default='?')
-    finished_at  = models.DateTimeField(default=None, null=True, blank=True)
     score        = models.ForeignKey('game.Score', related_name='games', on_delete=models.SET_NULL, default=None, null=True, blank=True)
     black_player = models.ForeignKey('users.User', related_name='+', on_delete=models.CASCADE)
     white_player = models.ForeignKey('users.User', related_name='+', on_delete=models.CASCADE)
