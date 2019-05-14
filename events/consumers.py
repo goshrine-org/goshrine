@@ -76,6 +76,10 @@ class TestConsumer(AsyncJsonWebsocketConsumer):
     def db_channel_del(self, user, channel):
         Channel.objects.filter(channel=channel).delete()
 
+    @database_sync_to_async
+    def db_channel_touch(self, user, channel):
+        Channel.objects.filter(pk=channel).update(last_seen=timezone.now())
+
     def user_to_group(self, user_id):
         return f"user_{user_id}"
 
@@ -146,6 +150,11 @@ class TestConsumer(AsyncJsonWebsocketConsumer):
         await self.db_channel_del(user, self.channel_name)
 
     async def receive_json(self, data):
+        # Update Channel.last_seen when we receive data on this channel.
+        user = self.scope.get('user', None)
+        if user is not None and user.is_authenticated:
+            await self.db_channel_touch(user, self.channel_name)
+
         print(f'receive_json {data}')
         if 'stream' not in data or 'payload' not in data:
             return await self.close()

@@ -41,3 +41,6 @@ urlpatterns = [
        path('users',                       include('users.urls')),
        path('welcome/video_intro',         home_views.video_intro),
 ] + static('/photos/', document_root='{}/photos/'.format(settings.MEDIA_ROOT))
+# The above allows us to serve avatars from test environments.  Under normal
+# operation nginx or some frontend webserver would serve the pictures and
+# the above path is not used.

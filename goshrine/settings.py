@@ -11,6 +11,7 @@ https://docs.djangoproject.com/en/2.0/ref/settings/
 """
 
 import os
+from datetime import timedelta
 
 # Build paths inside the project like this: os.path.join(BASE_DIR, ...)
 BASE_DIR = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
@@ -23,7 +24,7 @@ BASE_DIR = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
 SECRET_KEY = '[redacted]'
 
 # SECURITY WARNING: don't run with debug turned on in production!
-DEBUG         = True
+DEBUG         = False
 APPEND_SLASH  = False
 
 ALLOWED_HOSTS = ["127.0.0.1", "goshrine.org"]
@@ -36,6 +37,7 @@ INSTALLED_APPS = [
     'home.apps.HomeConfig',
     'rooms.apps.RoomsConfig',
     'users.apps.UsersConfig',
+    'django_celery_beat',
     'django.contrib.admin',
     'django.contrib.auth',
     'django.contrib.contenttypes',
@@ -89,6 +91,14 @@ CHANNEL_LAYERS = {
         "CONFIG": {
             "hosts": [("localhost", 6379)],
         },
+    },
+}
+
+CELERY_BROKER_URL   = 'redis://localhost:6379'
+CELERYBEAT_SCHEDULE = {
+    'prune-channels': {
+        'task'    : 'events.tasks.prune_channels',
+        'schedule': timedelta(seconds=30)
     },
 }
 

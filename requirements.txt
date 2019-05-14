@@ -1,5 +1,7 @@
 django
 django-extensions
+django-celery-beat
+redis
 django-channels
 django-mathfilters
 channels-redis
