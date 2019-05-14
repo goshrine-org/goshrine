@@ -120,9 +120,8 @@ def match_create(request):
     room_id        = form.cleaned_data['room_id']
 
     try:
-        with transaction.atomic():
-            target_user = User.objects.get(pk=target_user_id)
-            room        = Room.objects.get(pk=room_id)
+        target_user = User.objects.get(pk=target_user_id)
+        room        = Room.objects.get(pk=room_id)
     except (User.DoesNotExist, Room.DoesNotExist):
        raise Http404()
 
@@ -408,9 +407,11 @@ def move(request, token, coord):
     try:
         token_validator(token)
 
+        # Hold a row lock on 'game' until we have created a a new move and
+        # updated the relevant game data.
         with transaction.atomic():
             fields = ['turn', 'move_number', 'version', 'last_move', 'updated_at']
-            game = Game.objects.get(token=token)
+            game = Game.objects.select_for_update().get(token=token)
 
             if game.state != 'in-play':
                 return json_response({})
@@ -500,9 +501,10 @@ def attempt_start(request, token):
     try:
         token_validator(token)
 
+        # We will modify the game row, so we hold a transactional lock on it.
         with transaction.atomic():
             fields = []
-            game   = Game.objects.get(token=token)
+            game   = Game.objects.select_for_update().get(token=token)
 
             if game.black_player_id == request.user.id:
                 game.black_seen = True
@@ -550,7 +552,7 @@ def resign(request, token):
         token_validator(token)
 
         with transaction.atomic():
-            game = Game.objects.get(token=token)
+            game = Game.objects.select_for_update().get(token=token)
 
             if game.state != 'in-play':
                 return HttpResponseForbidden()
