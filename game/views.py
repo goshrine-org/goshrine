@@ -519,8 +519,9 @@ def attempt_start(request, token):
                 return HttpResponseForbidden()
 
             if game.black_seen and game.white_seen:
-                game.state = 'in-play'
-                fields.append("state")
+                game.started_at = timezone.now()
+                game.state      = 'in-play'
+                fields += "started_at", "state"
 
             game.save(update_fields=fields)
     except (ValidationError, Game.DoesNotExist):
