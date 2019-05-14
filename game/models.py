@@ -241,7 +241,7 @@ def token_default():
 class Game(models.Model):
     id           = models.BigAutoField(unique=True, primary_key=True)
     started_at   = models.DateTimeField(default=None, null=True, blank=True)
-    token        = models.CharField(max_length=32, default=token_default, blank=False, unique=True, db_index=True)
+    token        = models.CharField(max_length=36, default=token_default, blank=False, unique=True, db_index=True)
     state        = models.CharField(max_length=8, default='new')
     black_seen   = models.BooleanField(default=False)
     white_seen   = models.BooleanField(default=False)

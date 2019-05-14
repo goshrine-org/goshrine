@@ -275,9 +275,13 @@ def _game_create(match, black, white):
 
 @csrf_exempt
 def match_accept(request, match_id):
+
+    # We have to ensure the game is not accepted twice.  We lock the relevant
+    # MatchRequest row/object with select_for_update and do not release it
+    # until after we have made a game referencing it.
     with transaction.atomic():
         try:
-            match = MatchRequest.objects.select_related('game').select_for_update().get(pk=match_id)
+            match = MatchRequest.objects.select_for_update().get(pk=match_id)
         except MatchRequest.DoesNotExist:
             raise Http404()
 
@@ -286,7 +290,6 @@ def match_accept(request, match_id):
         except MatchRequest.game.RelatedObjectDoesNotExist:
             # We can only accept a match request if there is no associated game
             # for it in the database.
-            # XXX: race table lock?
             pass
         else:
             return HttpResponseForbidden('Game has been accepted in the past.')
