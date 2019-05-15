@@ -43,8 +43,8 @@ class Territory(models.Model):
 
 class DeadStones(models.Model):
     game  = models.OneToOneField('game.Game', related_name='dead_stones_by_color', on_delete=models.CASCADE)
-    black = ArrayField(models.CharField(max_length=2, blank=False, null=False), blank=True)
-    white = ArrayField(models.CharField(max_length=2, blank=False, null=False), blank=True)
+    black = ArrayField(models.CharField(max_length=2, blank=False, null=False), blank=True, null=False)
+    white = ArrayField(models.CharField(max_length=2, blank=False, null=False), blank=True, null=False)
 
 class HandicapStoneManager(models.Manager):
     def handicap_stones(self, game):

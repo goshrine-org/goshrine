@@ -13,7 +13,6 @@ from game.models import Board, Game, Move, Territory, MatchRequest, Message, Dea
 from django.utils import timezone
 from .algorithm import Board as BoardSimulator, InvalidMoveError
 from datetime import timedelta
-from .pachi_gtp import pachi_evaluate_sgf, gtp_to_gs_coord
 
 token_validator = RegexValidator("^[a-f0-9-]+$")
 
@@ -21,34 +20,9 @@ def json_response(msg, **kwargs):
     params = { 'separators': (',', ':') }
     return JsonResponse(msg, safe=False, json_dumps_params=params, **kwargs)
 
-def pachi_evaluate(game):
-    # We use pachi to evaluate territory and captures etc.
-    board = board_simulate(game)
-    sgf   = bytes(game.sgf(), 'ascii')
-    data  = pachi_evaluate_sgf(sgf)
-
-    # Convert the dead stones to captured stones by color.
-    dead_stones_by_color = { 'black': [], 'white': [] }
-    for group in data['dead']:
-        group = [gtp_to_gs_coord(board.size, c) for c in group]
-        if not group: continue
-
-        coord = board.translate(group[0])
-
-        if board.get(coord) == 'b':
-            dead_stones_by_color['black'] += group
-        else:
-            dead_stones_by_color['white'] += group
-
-    del(data['alive'], data['dead'], data['seki'])
-    data['black'] = [gtp_to_gs_coord(board.size, c) for c in data['territory-black']]
-    del(data['territory-black'])
-    data['white'] = [gtp_to_gs_coord(board.size, c) for c in data['territory-white']]
-    del(data['territory-white'])
-    data['dame']  = [gtp_to_gs_coord(board.size, c) for c in data['dame']]
-    data['dead_stones_by_color'] = dead_stones_by_color
-
-    return data
+def json_error(msg, **kwargs):
+    data = { 'error': msg }
+    return json_response(data)
 
 def game(request, token):
     try:
@@ -400,13 +374,24 @@ def mark_group_dead(request, token, coord):
             game = Game.objects.get(token=token)
 
             if game.state != 'scoring':
-                return json_response({})
+                return json_error('game is still in progress')
 
-#            board = board_simulate(game)
-
-            print(game.board.dead_stones_by_color.white)
+            print(game.dead_stones_by_color.white)
     except (ValidationError, Game.DoesNotExist):
         raise Http404()
+
+    # We work with groups here, so we first reconstruct the board.
+    board = board_simulate(game)
+
+    for s in board.gtp():
+        print(s)
+    print(board)
+    print(board.pachi_evaluate())
+#    group = board.group(board.translate(coord))
+
+    # The group will be empty if there is no stone.  We're done.
+    if not group:
+        return json_error('there is no stone here')
 
 #    sgf_coord = board.translate(coord)
 #    group = board.group(sgf_coord)
@@ -472,7 +457,7 @@ def move(request, token, coord):
                 fields.append('state')
 
             try:
-                board_simulate(game, coord)
+                board = board_simulate(game, coord)
             except InvalidMoveError as e:
                 return json_response({'error': str(e)})
 
@@ -521,7 +506,7 @@ def move(request, token, coord):
             }
         )
 
-        score = pachi_evaluate(game)
+        score = board.pachi_evaluate()
 
         with transaction.atomic():
             game = Game.objects.select_for_update().get(token=token)
