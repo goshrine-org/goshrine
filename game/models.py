@@ -18,36 +18,28 @@ class MatchRequest(models.Model):
     main_time         = models.PositiveIntegerField(null=True, default=None, blank=True)
     byo_yomi          = models.BooleanField(null=True, default=None, blank=True)
 
-class TerritoryManager(models.Manager):
-    def sgf(self, game):
-        try:
-            t = Territory.objects.get(game_id=game.id)
-        except Territory.DoesNotExist:
-            return ''
+class Territory(models.Model):
+    game  = models.OneToOneField('game.Game', related_name='territory', on_delete=models.CASCADE)
+    black = ArrayField(models.CharField(max_length=2, blank=False, null=False), blank=True, default=list)
+    white = ArrayField(models.CharField(max_length=2, blank=False, null=False), blank=True, default=list)
+    dame  = ArrayField(models.CharField(max_length=2, blank=False, null=False), blank=True, default=list)
 
+    def sgf(self):
         sio = io.StringIO()
 
         # Black territory.
         sio.write('TB')
-        for c in t.black:
+        for c in self.black:
             sio.write(f'[{c}]')
 
         # White territory.
         sio.write('TW')
-        for c in t.white:
+        for c in self.white:
             sio.write(f'[{c}]')
 
         s = sio.getvalue()
         sio.close()
         return s
-
-class Territory(models.Model):
-    objects = TerritoryManager()
-
-    game  = models.OneToOneField('game.Game', related_name='territory', on_delete=models.CASCADE)
-    black = ArrayField(models.CharField(max_length=2, blank=False, null=False), blank=True, default=list)
-    white = ArrayField(models.CharField(max_length=2, blank=False, null=False), blank=True, default=list)
-    dame  = ArrayField(models.CharField(max_length=2, blank=False, null=False), blank=True, default=list)
 
 class DeadStones(models.Model):
     game  = models.OneToOneField('game.Game', related_name='dead_stones_by_color', on_delete=models.CASCADE)
@@ -205,7 +197,12 @@ class Game(models.Model):
         if self.handicap != 0:
             sio.write(HandicapStone.objects.sgf(self) + '\n')
         sio.write(Move.objects.sgf(self) + '\n')
-        sio.write(Territory.objects.sgf(self) + '\n')
+
+        try:
+            sio.write(self.territory.sgf() + '\n')
+        except Game.territory.RelatedObjectDoesNotExist:
+            pass
+
         s = sio.getvalue()
         sio.close()
         return s
