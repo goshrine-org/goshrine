@@ -12215,6 +12215,7 @@ eidogo.Rules.prototype = {init:function(a) {
     this.dom.score && (this.dom.score.style.display = "", this.dom.territory.style.display = "");
     this.scoringInfo.score && this.dom.whiteTerritory && (this.dom.whiteTerritory.innerHTML = this.scoringInfo.score.white_territory_count, this.dom.blackTerritory.innerHTML = this.scoringInfo.score.black_territory_count, this.dom.whiteScore.innerHTML = this.scoringInfo.score.white, this.dom.blackScore.innerHTML = this.scoringInfo.score.black);
   }, showScoringInfo:function(a) {
+    console.log(a);
     this.scoringInfo = a;
     this.board.clearMarkers();
     this.renderGroupsOfMarks(this.scoringInfo.white, "territory-white");
@@ -12266,6 +12267,7 @@ eidogo.Rules.prototype = {init:function(a) {
         this.handleDisplayPrefs();
         break;
       case "setScoring":
+        this.mode = "scoring";
         this.gameState = "scoring";
         this.showScoringInfo(b);
         break;
