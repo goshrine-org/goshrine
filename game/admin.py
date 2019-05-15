@@ -10,11 +10,5 @@ admin.site.register(Stone)
 admin.site.register(Score)
 admin.site.register(MatchRequest)
 
+admin.site.register(DeadStones)
 admin.site.register(Territory)
-admin.site.register(TerritoryBlack)
-admin.site.register(TerritoryWhite)
-admin.site.register(TerritoryDame)
-
-admin.site.register(DeadStone)
-admin.site.register(DeadStoneBlack)
-admin.site.register(DeadStoneWhite)

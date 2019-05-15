@@ -9,7 +9,7 @@ from .forms import MatchCreateForm, MatchProposeForm, MessageForm
 from django.core.validators import RegexValidator, ValidationError
 from users.models import User
 from rooms.models import Room, RoomChannel
-from game.models import Board, Game, Move, Territory, MatchRequest, Message
+from game.models import Board, Game, Move, Territory, MatchRequest, Message, DeadStones
 from django.utils import timezone
 from .algorithm import Board as BoardSimulator, InvalidMoveError
 from datetime import timedelta
@@ -31,6 +31,8 @@ def pachi_evaluate(game):
     dead_stones_by_color = { 'black': [], 'white': [] }
     for group in data['dead']:
         group = [gtp_to_gs_coord(board.size, c) for c in group]
+        if not group: continue
+
         coord = board.translate(group[0])
 
         if board.get(coord) == 'b':
@@ -39,11 +41,11 @@ def pachi_evaluate(game):
             dead_stones_by_color['white'] += group
 
     del(data['alive'], data['dead'], data['seki'])
-    data['black'] = [[gtp_to_gs_coord(board.size, c) for c in data['territory-black']]]
+    data['black'] = [gtp_to_gs_coord(board.size, c) for c in data['territory-black']]
     del(data['territory-black'])
-    data['white'] = [[gtp_to_gs_coord(board.size, c) for c in data['territory-white']]]
+    data['white'] = [gtp_to_gs_coord(board.size, c) for c in data['territory-white']]
     del(data['territory-white'])
-    data['dame']  = [[gtp_to_gs_coord(board.size, c) for c in data['dame']]]
+    data['dame']  = [gtp_to_gs_coord(board.size, c) for c in data['dame']]
     data['dead_stones_by_color'] = dead_stones_by_color
 
     return data
@@ -77,11 +79,20 @@ def game_for_eidogo(request, token):
         # Original goshrine.com returns 'Game not found!' in plaintext
         raise Http404()
 
-    s = {}
-    s['dame']  = Territory.objects.dame(game.board)
-    s['white'] = Territory.objects.white(game.board)
-    s['black'] = Territory.objects.black(game.board)
-    s['dead_stones_by_color'] = { 'black': [], 'white': [] }
+    s = { 'dead_stones_by_color': {} }
+    try:
+        s['dame']  = [game.territory.dame]
+        s['white'] = [game.territory.white]
+        s['black'] = [game.territory.black]
+    except Game.territory.RelatedObjectDoesNotExist:
+        s['dame'] = s['black'] = s['white'] = []
+
+    try:
+        s['dead_stones_by_color']['black'] = game.dead_stones_by_color.black
+        s['dead_stones_by_color']['white'] = game.dead_stones_by_color.white
+    except Game.dead_stones_by_color.RelatedObjectDoesNotExist:
+        s['dead_stones_by_color']['black'] = []
+        s['dead_stones_by_color']['white'] = []
 
     if game.score:
         s['score'] = model_to_dict(game.score, exclude=['id'])
@@ -123,7 +134,7 @@ def game_for_eidogo(request, token):
     g['white_player_id']     = game.white_player.id
     g['white_player_rank']   = game.white_player_rank
     g['white_seconds_left']  = game.white_seconds_left
-    g['scoring_info']        = pachi_evaluate(game)
+    g['scoring_info']        = s
 
     msg = {}
     msg['sgf'] = game.sgf()
@@ -511,8 +522,28 @@ def move(request, token, coord):
         )
 
         score = pachi_evaluate(game)
-        game.state = 'scoring'
-        game.save()
+
+        with transaction.atomic():
+            game = Game.objects.select_for_update().get(token=token)
+            game.state = 'scoring'
+            # We use update or create, as there could be pending DeadStones
+            # set during a previous estimation which was undone.
+            dead = DeadStones.objects.update_or_create(
+                game=game,
+                black=score['dead_stones_by_color']['black'],
+                white=score['dead_stones_by_color']['white']
+            )
+            territory = Territory.objects.update_or_create(
+                game=game,
+                black=score['black'],
+                white=score['white']
+            )
+            game.save()
+
+        # XXX: kludge due to old goshrine javascript
+        if score['dame'] : score['dame']  = [score['dame']]
+        if score['black']: score['black'] = [score['black']]
+        if score['white']: score['white'] = [score['white']]
         print(score)
         response = {
             'action': 'setScoring',
@@ -628,8 +659,7 @@ def resign(request, token):
         }
     )
 
-    params = { 'separators': (',', ':') }
-    return JsonResponse({}, safe=False, json_dumps_params=params)
+    return json_response({})
 
 @csrf_exempt
 def messages(request, token):

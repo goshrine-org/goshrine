@@ -3,6 +3,7 @@ import uuid
 from itertools import chain
 from django.db import models
 from django.utils import timezone
+from django.contrib.postgres.fields import ArrayField
 
 class MatchRequest(models.Model):
     id                = models.BigAutoField(unique=True, primary_key=True)
@@ -17,109 +18,23 @@ class MatchRequest(models.Model):
     main_time         = models.PositiveIntegerField(null=True, default=None, blank=True)
     byo_yomi          = models.BooleanField(null=True, default=None, blank=True)
 
-class TerritoryInstanceManager(models.Manager):
-    def territories(self, territory):
-        return super().get_queryset().filter(territory=territory)
-
-class TerritoryBlack(models.Model):
-    objects    = TerritoryInstanceManager()
-
-    class Meta:
-        unique_together = (('territory', 'coordinate'),)
-
-    territory  = models.ForeignKey('game.Territory', related_name='black', on_delete=models.CASCADE)
-    coordinate = models.CharField(max_length=2, blank=False, null=False)
-
-class TerritoryWhite(models.Model):
-    objects    = TerritoryInstanceManager()
-
-    class Meta:
-        unique_together = (('territory', 'coordinate'),)
-
-    territory  = models.ForeignKey('game.Territory', related_name='white', on_delete=models.CASCADE)
-    coordinate = models.CharField(max_length=2, blank=False, null=False)
-
-class TerritoryDame(models.Model):
-    objects    = TerritoryInstanceManager()
-
-    class Meta:
-        unique_together = (('territory', 'coordinate'),)
-
-    territory  = models.ForeignKey('game.Territory', related_name='dame', on_delete=models.CASCADE)
-    coordinate = models.CharField(max_length=2, blank=False, null=False)
-
 class TerritoryManager(models.Manager):
-    def _list_convert(self, values):
-        l = []
-        cur = -1
-        for i, c in list(values):
-            if i > cur:
-                cur = i
-                l.append([c])
-            else:
-                l[-1].append(c)
-        return l
+    def sgf(self, game):
+        try:
+            t = Territory.objects.get(game_id=game.id)
+        except Territory.DoesNotExist:
+            return ''
 
-    def black_values(self, board):
-        t = TerritoryBlack.objects.select_related('territory').filter(territory__board=board)
-        t = t.order_by('territory__index')
-        t = t.values('coordinate', index=models.F('territory__index'))
-        return t
-
-    def black_values_list(self, board):
-        t = TerritoryBlack.objects.select_related('territory').filter(territory__board=board)
-        t = t.order_by('territory__index')
-        return t.values_list('territory__index', 'coordinate')
-
-    def white_values(self, board):
-        t = TerritoryWhite.objects.select_related('territory').filter(territory__board=board)
-        t = t.order_by('territory__index')
-        t = t.values('coordinate', index=models.F('territory__index'))
-        return t
-
-    def white_values_list(self, board):
-        t = TerritoryWhite.objects.select_related('territory').filter(territory__board=board)
-        t = t.order_by('territory__index')
-        return t.values_list('territory__index', 'coordinate')
-
-    def dame_values(self, board):
-        t = TerritoryDame.objects.select_related('territory').filter(territory__board=board)
-        t = t.order_by('territory__index')
-        t = t.values('coordinate', index=models.F('territory__index'))
-        return t
-
-    def dame_values_list(self, board):
-        t = TerritoryDame.objects.select_related('territory').filter(territory__board=board)
-        t = t.order_by('territory__index')
-        return t.values_list('territory__index', 'coordinate')
-
-    def black(self, board):
-        return self._list_convert(self.black_values_list(board))
-
-    def white(self, board):
-        return self._list_convert(self.white_values_list(board))
-
-    def dame(self, board):
-        return self._list_convert(self.dame_values_list(board))
-
-    def territories(self, board):
-        return {
-            'black': self.black(board),
-            'white': self.white(board),
-            'dame' : self.dame(board)
-        }
-
-    def sgf(self, board):
         sio = io.StringIO()
 
         # Black territory.
         sio.write('TB')
-        for c in chain.from_iterable(self.black(board)):
+        for c in t.black:
             sio.write(f'[{c}]')
 
         # White territory.
         sio.write('TW')
-        for c in chain.from_iterable(self.white(board)):
+        for c in t.white:
             sio.write(f'[{c}]')
 
         s = sio.getvalue()
@@ -127,25 +42,17 @@ class TerritoryManager(models.Manager):
         return s
 
 class Territory(models.Model):
-    objects    = TerritoryManager()
+    objects = TerritoryManager()
 
-    board      = models.ForeignKey('game.Board', related_name='territories', on_delete=models.CASCADE)
-    index      = models.PositiveSmallIntegerField(blank=False, null=False)
+    game  = models.OneToOneField('game.Game', related_name='territory', on_delete=models.CASCADE)
+    black = ArrayField(models.CharField(max_length=2, blank=False, null=False), blank=True, default=list)
+    white = ArrayField(models.CharField(max_length=2, blank=False, null=False), blank=True, default=list)
+    dame  = ArrayField(models.CharField(max_length=2, blank=False, null=False), blank=True, default=list)
 
-class DeadStoneBlack(models.Model):
-    class Meta:
-        unique_together = (('dead_stone', 'coordinate'),)
-    dead_stone = models.ForeignKey('game.DeadStone', related_name='black', on_delete=models.CASCADE)
-    coordinate = models.CharField(max_length=2, blank=False, null=False)
-
-class DeadStoneWhite(models.Model):
-    class Meta:
-        unique_together = (('dead_stone', 'coordinate'),)
-    dead_stone = models.ForeignKey('game.DeadStone', related_name='white', on_delete=models.CASCADE)
-    coordinate = models.CharField(max_length=2, blank=False, null=False)
-
-class DeadStone(models.Model):
-    board      = models.OneToOneField('game.Board', related_name='dead_stones_by_color', on_delete=models.CASCADE)
+class DeadStones(models.Model):
+    game  = models.OneToOneField('game.Game', related_name='dead_stones_by_color', on_delete=models.CASCADE)
+    black = ArrayField(models.CharField(max_length=2, blank=False, null=False), blank=True)
+    white = ArrayField(models.CharField(max_length=2, blank=False, null=False), blank=True)
 
 class HandicapStoneManager(models.Manager):
     def handicap_stones(self, game):
@@ -298,7 +205,7 @@ class Game(models.Model):
         if self.handicap != 0:
             sio.write(HandicapStone.objects.sgf(self) + '\n')
         sio.write(Move.objects.sgf(self) + '\n')
-        sio.write(Territory.objects.sgf(self.board) + '\n')
+        sio.write(Territory.objects.sgf(self) + '\n')
         s = sio.getvalue()
         sio.close()
         return s
