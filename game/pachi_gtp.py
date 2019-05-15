@@ -9,8 +9,16 @@ def coord_gen(size):
             c2 = str(y + 1)
             yield c1 + c2
 
-def pachi_evaluate_sgf(handle):
-    p = subprocess.run('./pachi/tools/sgf2gtp.pl', stdin=handle, capture_output=True)
+def gtp_to_gs_coord(size, s):
+    assert len(s) in (2, 3)
+
+    x = ord(s[0]) - ord('A')
+    x = chr(x - int(x > 7) + ord('a'))
+    y = chr(size - int(s[1:]) + ord('a'))
+    return x + y
+
+def pachi_evaluate_sgf(sgf):
+    p = subprocess.run('/home/goshrine/goshrine/game/pachi/tools/sgf2gtp.pl', input=sgf, capture_output=True)
     gtp  = p.stdout
     gtp += b'final_status_list alive\n'
     gtp += b'final_status_list dead\n'
@@ -18,7 +26,7 @@ def pachi_evaluate_sgf(handle):
     gtp += b'final_status_list white_territory\n'
     gtp += b'final_status_list seki\n'
 
-    p = subprocess.run('./pachi/pachi', input=gtp, capture_output=True)
+    p = subprocess.run('/home/goshrine/goshrine/game/pachi/pachi', input=gtp, capture_output=True)
     results = filter(None, p.stdout.decode('ascii').split('\n\n'))
     results = list(results)[-5:]
 
@@ -46,6 +54,3 @@ def pachi_evaluate_sgf(handle):
         'dame'           : list(board-got),
         'seki'           : seki,
     }
-
-with open('/home/ronald/Downloads/f2486aa7.sgf', 'r') as f:
-    print(pachi_evaluate_sgf(f))

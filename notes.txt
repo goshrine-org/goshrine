@@ -1,3 +1,8 @@
+Running daphne
+--------------
+daphne --proxy-headers -p 8001 goshrine.asgi:application
+celery worker -A goshrine -B -l info --scheduler django_celery_beat.schedulers:DatabaseScheduler
+
 On presence
 -----------
 
@@ -30,8 +35,6 @@ room/channel list from the database during startup.
 
 However, the problem becomes more complex when multiple daphne servers are
 involved, and only one of them is restarted uncleanly.
-
-celery worker -A goshrine -B -l info --scheduler django_celery_beat.schedulers:DatabaseScheduler
 
 Importing old users
 -------------------

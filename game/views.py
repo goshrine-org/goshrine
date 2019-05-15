@@ -13,12 +13,40 @@ from game.models import Board, Game, Move, Territory, MatchRequest, Message
 from django.utils import timezone
 from .algorithm import Board as BoardSimulator, InvalidMoveError
 from datetime import timedelta
+from .pachi_gtp import pachi_evaluate_sgf, gtp_to_gs_coord
 
 token_validator = RegexValidator("^[a-f0-9-]+$")
 
 def json_response(msg, **kwargs):
     params = { 'separators': (',', ':') }
     return JsonResponse(msg, safe=False, json_dumps_params=params, **kwargs)
+
+def pachi_evaluate(game):
+    # We use pachi to evaluate territory and captures etc.
+    board = board_simulate(game)
+    sgf   = bytes(game.sgf(), 'ascii')
+    data  = pachi_evaluate_sgf(sgf)
+
+    # Convert the dead stones to captured stones by color.
+    dead_stones_by_color = { 'black': [], 'white': [] }
+    for group in data['dead']:
+        group = [gtp_to_gs_coord(board.size, c) for c in group]
+        coord = board.translate(group[0])
+
+        if board.get(coord) == 'b':
+            dead_stones_by_color['black'] += group
+        else:
+            dead_stones_by_color['white'] += group
+
+    del(data['alive'], data['dead'], data['seki'])
+    data['black'] = [[gtp_to_gs_coord(board.size, c) for c in data['territory-black']]]
+    del(data['territory-black'])
+    data['white'] = [[gtp_to_gs_coord(board.size, c) for c in data['territory-white']]]
+    del(data['territory-white'])
+    data['dame']  = [[gtp_to_gs_coord(board.size, c) for c in data['dame']]]
+    data['dead_stones_by_color'] = dead_stones_by_color
+
+    return data
 
 def game(request, token):
     try:
@@ -95,7 +123,7 @@ def game_for_eidogo(request, token):
     g['white_player_id']     = game.white_player.id
     g['white_player_rank']   = game.white_player_rank
     g['white_seconds_left']  = game.white_seconds_left
-    g['scoring_info']        = s
+    g['scoring_info']        = pachi_evaluate(game)
 
     msg = {}
     msg['sgf'] = game.sgf()
@@ -429,7 +457,7 @@ def move(request, token, coord):
 
             if game.last_move == 'pass' and coord == 'pass':
                 game_end = True
-                game.state = 'scoring'
+                game.state = 'estimating-score'
                 fields.append('state')
 
             try:
@@ -469,18 +497,27 @@ def move(request, token, coord):
 
     if game_end:
         response = {
-            'action': 'setScoring',
-            'data'  : {
-                'white': [],
-                'black': [],
-                'dame' : [],
-                'dead_stones_by_color': {
-                    'black': [],
-                    'white': []
-                }
-            }
+            'action': 'estimatingScore',
         }
 
+        group = f'game_{game.token}'
+        print(f"    estimatingScore -> {group}")
+        async_to_sync(channel_layer.group_send)(
+                group, {
+                    'type'   : 'room.xmit.event',
+                    'stream' : f'game_play_{game.token}',
+                    'payload': response
+            }
+        )
+
+        score = pachi_evaluate(game)
+        game.state = 'scoring'
+        game.save()
+        print(score)
+        response = {
+            'action': 'setScoring',
+            'data'  : score
+        }
         group = f'game_{game.token}'
         print(f"    setScoring -> {group}")
         async_to_sync(channel_layer.group_send)(
