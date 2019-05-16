@@ -34,6 +34,14 @@ def game(request, token):
 
     return render(request, 'game/game.html', {'game': game})
 
+# Validate whether the requested 'user_id' is playing this game.
+def game_validate_user(game, user_id):
+    if game.black_player_id == user_id:
+        return True
+    if game.white_player_id == user_id:
+        return True
+    return False
+
 def game_sgf(request, token):
     try:
         token_validator(token)
@@ -418,6 +426,47 @@ def score_update(game, score, board):
     )
 
 @csrf_exempt
+def done_scoring(request, token):
+    if request.method != 'POST':
+        return HttpResponseNotAllowed(['POST'])
+
+    try:
+        token_validator(token)
+
+        with transaction.atomic():
+            game = Game.objects.select_for_update().get(token=token)
+
+            if not game_validate_user(game, request.user.id):
+                return HttpResponseForbidden()
+
+            if game.state != 'scoring':
+                return json_error('game is not being scored')
+
+            if game.user_done_scoring is not None:
+                # If we signal we're done scoring twice, we do not count.
+                if game.user_done_scoring_id == request.user.id:
+                    return json_error('you finished scoring already')
+
+                # Totally done scoring.
+                game.state               = 'finished'
+                game.black_capture_count = len(game.dead_stones_by_color.white)
+                game.white_capture_count = len(game.dead_stones_by_color.black)
+                game.updated_at          = timezone.now()
+                result                   = game.score.black - game.score.white
+                result                   = "{}+{}".format("BW"[result < 0], abs(result))
+                game.result              = result
+                game.save()
+                return json_response({})
+
+            # We are the first to be done with scoring.  Flag it.
+            game.user_done_scoring_id = request.user.id
+            game.save()
+    except (ValidationError, Game.DoesNotExist):
+        raise Http404()
+
+    return json_response({})
+
+@csrf_exempt
 def mark_group_dead(request, token, coord):
     if len(coord) > 2:
         return HttpResponseBadRequest()
@@ -428,10 +477,11 @@ def mark_group_dead(request, token, coord):
         with transaction.atomic():
             game = Game.objects.get(token=token)
 
-            if game.state != 'scoring':
-                return json_error('game is still in progress')
+            if not game_validate_user(game, request.user.id):
+                return HttpResponseForbidden()
 
-            print(game.dead_stones_by_color.white)
+            if game.state != 'scoring':
+                return json_error('game is not being scored')
     except (ValidationError, Game.DoesNotExist):
         raise Http404()
 
@@ -563,7 +613,7 @@ def move(request, token, coord):
 
         score = board.pachi_evaluate()
 
-        score_update(game, score)
+        score_update(game, score, board)
 
     return json_response({})
 

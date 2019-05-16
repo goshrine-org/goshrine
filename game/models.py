@@ -27,15 +27,26 @@ class Territory(models.Model):
     def sgf(self):
         sio = io.StringIO()
 
+        if not self.black and not self.white:
+            return ''
+
         # Black territory.
         sio.write('TB')
-        for c in self.black:
-            sio.write(f'[{c}]')
+
+        if not self.black:
+            sio.write('[]')
+        else:
+            for c in self.black:
+                sio.write(f'[{c}]')
 
         # White territory.
         sio.write('TW')
-        for c in self.white:
-            sio.write(f'[{c}]')
+
+        if not self.white:
+            sio.write('[]')
+        else:
+            for c in self.white:
+                sio.write(f'[{c}]')
 
         s = sio.getvalue()
         sio.close()
@@ -137,7 +148,38 @@ class Message(models.Model):
 def token_default():
     return str(uuid.uuid4())
 
+class GameQuerySet(models.QuerySet):
+    def played_by(self, user_id):
+        qs  = self.filter(black_player_id=user_id)
+        qs |= self.filter(white_player_id=user_id)
+        return qs
+
+    def won_by(self, user_id):
+        qs  = self.filter(black_player_id=user_id, result__startswith='B')
+        qs |= self.filter(white_player_id=user_id, result__startswith='W')
+        return qs
+
+    def lost_by(self, user_id):
+        qs  = self.filter(black_player_id=user_id, result__startswith='W')
+        qs |= self.filter(white_player_id=user_id, result__startswith='B')
+        return qs
+
+class GameManager(models.Manager):
+    def get_queryset(self):
+        return GameQuerySet(self.model, using=self._db)
+
+    def played_by(self, user_id):
+        return self.get_queryset().played_by(user_id)
+
+    def won_by(self, user_id):
+        return self.get_queryset().won_by(user_id)
+
+    def lost_by(self, user_id):
+        return self.get_queryset().lost_by(user_id)
+
 class Game(models.Model):
+    objects      = GameManager()
+
     id           = models.BigAutoField(unique=True, primary_key=True)
     started_at   = models.DateTimeField(default=None, null=True, blank=True)
     token        = models.CharField(max_length=36, default=token_default, blank=False, unique=True, db_index=True)
@@ -155,7 +197,7 @@ class Game(models.Model):
     komi         = models.FloatField(blank=True, null=False, default=6.5)
     updated_at   = models.DateTimeField(default=timezone.now)
     game_type    = models.CharField(max_length=16)
-    result       = models.CharField(max_length=8, null=True, blank=True)
+    result       = models.CharField(max_length=8, null=True, blank=True, db_index=True)
     handicap     = models.PositiveSmallIntegerField(null=False, default=0)
     timed        = models.BooleanField(default=False)
     main_time    = models.PositiveIntegerField(null=True, default=None, blank=True)
@@ -203,6 +245,7 @@ class Game(models.Model):
         except Game.territory.RelatedObjectDoesNotExist:
             pass
 
+        sio.write(')\n')
         s = sio.getvalue()
         sio.close()
         return s

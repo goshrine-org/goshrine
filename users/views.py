@@ -10,6 +10,18 @@ import itertools
 
 User = get_user_model()
 
+def player_render(request, user):
+    qs      = Game.objects.played_by(user).order_by('-updated_at')[:20]
+    wins    = Game.objects.won_by(user).count()
+    losses  = Game.objects.lost_by(user).count()
+    context = {
+        'target_user': user,
+        'games'      : list(qs),
+        'wins'       : wins,
+        'losses'     : losses
+    }
+    return render(request, 'users/user.html', context)
+
 def _user_get(request):
     if not hasattr(request, 'user'):
         return None
@@ -29,20 +41,15 @@ def _user_target_get(user_id):
         return None
 
 def players(request, username):
-    # XXX: code duplication.
     username_validator = RegexValidator("^[A-Za-z0-9_][A-Za-z0-9_.-]*$")
 
     try:
         username_validator(username)
         target_user = User.objects.get(login=username)
-
-        qs  = Game.objects.filter(black_player_id=target_user.id)
-        qs |= Game.objects.filter(white_player_id=target_user.id)
-        qs  = qs.order_by('-updated_at')[:20]
     except (ValidationError, User.DoesNotExist):
        raise Http404()
 
-    return render(request, 'users/user.html', {'target_user': target_user, 'games': list(qs)})
+    return player_render(request, target_user)
 
 def index(request):
     if request.method != 'POST':
@@ -128,10 +135,7 @@ def user(request, user_id):
        raise Http404()
 
     if request.method != 'POST':
-        qs  = Game.objects.filter(black_player_id=target_user.id)
-        qs |= Game.objects.filter(white_player_id=target_user.id)
-        qs  = qs.order_by('-updated_at')[:20]
-        return render(request, 'users/user.html', {'target_user': target_user, 'games': list(qs)})
+        return player_render(request, target_user)
 
     form   = EditForm(request.POST, request.FILES, instance=target_user)
     errors = []
