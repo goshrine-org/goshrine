@@ -16,6 +16,7 @@ class Board(object):
         self.captures  = { 'b': 0, 'w': 0 }
         self.end       = False
         self.moves     = []
+        self.removed   = []
         self.rules     = "japanese"
         self.komi      = 6.5
 
@@ -139,6 +140,10 @@ class Board(object):
         x, y = self.coord_validate(coord)
         self.board[y][x] = value
 
+    def remove(self, coord):
+        self.set(coord, None)
+        self.removed.append(coord)
+
     def move(self, coord):
         if coord is None: return self._pass_move()
 
@@ -198,9 +203,14 @@ class Board(object):
             if move == 'pass': continue
             yield 'play {} {}'.format("BW"[i % 2], self.gtp_coord(move))
 
+        # XXX: kludged in pachi extension. :(
+        for move in self.removed:
+            yield 'capture {}'.format(self.gtp_coord(move))
+
     def pachi_evaluate(self):
 	# We use pachi to evaluate territory and captures etc.
         data = self.pachi_run_evaluate()
+        print(data)
 
         # Convert the dead stones to captured stones by color.
         dead_stones_by_color = { 'black': [], 'white': [] }
@@ -232,6 +242,16 @@ class Board(object):
                 c2 = str(y + 1)
                 yield c1 + c2
 
+    def coord_to_gs(self, coord):
+        x, y = self.coord_validate(coord)
+        x = chr(ord('a') + x)
+        y = chr(ord('a') + self.size - y - 1)
+        return x + y
+
+    def coords_to_gs(self, coords):
+        for coord in coords:
+            yield self.coord_to_gs(coord)
+
     def gtp_to_gs_coord(self, s):
         assert len(s) in (2, 3)
 
@@ -241,7 +261,7 @@ class Board(object):
         return x + y
 
     def pachi_run_evaluate(self):
-        gtp  = '\n'.join(self.gtp())
+        gtp  = '\n'.join(self.gtp()) + '\n'
         gtp += 'final_status_list alive\n'
         gtp += 'final_status_list dead\n'
         gtp += 'final_status_list black_territory\n'

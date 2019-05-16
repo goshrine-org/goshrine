@@ -113,13 +113,13 @@ class Move(models.Model):
 
 class Score(models.Model):
     class Meta:
-        unique_together = ((
+        index_together = unique_together = ((
             'white_territory_count', 'black_territory_count', 'white', 'black'
         ),)
     white_territory_count = models.PositiveSmallIntegerField(null=False)
     black_territory_count = models.PositiveSmallIntegerField(null=False)
-    white                 = models.DecimalField(max_digits=8, decimal_places=1, null=False)
-    black                 = models.DecimalField(max_digits=8, decimal_places=1, null=False)
+    white                 = models.FloatField(null=False)
+    black                 = models.FloatField(null=False)
 
 class MessageManager(models.Manager):
     def messages(self, game):
@@ -152,7 +152,7 @@ class Game(models.Model):
     user_done_scoring = models.ForeignKey('users.User', related_name='+', on_delete=models.CASCADE, null=True, blank=True)
     match_request = models.OneToOneField(MatchRequest, related_name='game', on_delete=models.SET_NULL, null=True, blank=True)
     resigned_by  = models.ForeignKey('users.User', related_name='+', on_delete=models.CASCADE, null=True, blank=True)
-    komi         = models.DecimalField(max_digits=8, decimal_places=1, default=6.5)
+    komi         = models.FloatField(blank=True, null=False, default=6.5)
     updated_at   = models.DateTimeField(default=timezone.now)
     game_type    = models.CharField(max_length=16)
     result       = models.CharField(max_length=8, null=True, blank=True)

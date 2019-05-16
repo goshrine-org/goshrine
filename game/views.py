@@ -9,7 +9,7 @@ from .forms import MatchCreateForm, MatchProposeForm, MessageForm
 from django.core.validators import RegexValidator, ValidationError
 from users.models import User
 from rooms.models import Room, RoomChannel
-from game.models import Board, Game, Move, Territory, MatchRequest, Message, DeadStones
+from game.models import Board, Game, Move, Territory, MatchRequest, Message, DeadStones, Score
 from django.utils import timezone
 from .algorithm import Board as BoardSimulator, InvalidMoveError
 from datetime import timedelta
@@ -362,6 +362,60 @@ def board_simulate(game, coord=None):
     print(board)
     return board
 
+def score_update(game, score, board):
+    # Calculate the score.
+    score['score'] = {}
+    score['score']['black_territory_count']  = len(score['black'])
+    score['score']['black_territory_count'] += len(score['dead_stones_by_color']['white'])
+    score['score']['white_territory_count']  = len(score['white'])
+    score['score']['white_territory_count'] += len(score['dead_stones_by_color']['black'])
+    score['score']['black'] = score['score']['black_territory_count'] + board.captures['b']
+    score['score']['white'] = score['score']['white_territory_count'] + board.captures['w'] + float(game.komi)
+
+    with transaction.atomic():
+        game = Game.objects.select_for_update().get(token=game.token)
+        game.state = 'scoring'
+        game.score = Score.objects.get_or_create(**score['score'])[0]
+        # We use update or create, as there could be pending DeadStones
+        # set during a previous estimation which was undone.
+        dead = DeadStones.objects.update_or_create(
+            game=game,
+            defaults={
+                'black': score['dead_stones_by_color']['black'],
+                'white': score['dead_stones_by_color']['white']
+            }
+        )
+        territory = Territory.objects.update_or_create(
+            game=game,
+            defaults={
+                'black': score['black'],
+                'white': score['white']
+            }
+        )
+        game.save()
+
+    # XXX: kludge due to old goshrine javascript
+    if score['dame'] : score['dame']  = [score['dame']]
+    if score['black']: score['black'] = [score['black']]
+    if score['white']: score['white'] = [score['white']]
+
+    print(score)
+
+    channel_layer = get_channel_layer()
+    response = {
+        'action': 'setScoring',
+        'data'  : score
+    }
+    group = f'game_{game.token}'
+    print(f"    setScoring -> {group}")
+    async_to_sync(channel_layer.group_send)(
+            group, {
+                'type'   : 'room.xmit.event',
+                'stream' : f'game_play_{game.token}',
+                'payload': response
+        }
+    )
+
 @csrf_exempt
 def mark_group_dead(request, token, coord):
     if len(coord) > 2:
@@ -383,44 +437,44 @@ def mark_group_dead(request, token, coord):
     # We work with groups here, so we first reconstruct the board.
     board = board_simulate(game)
 
-    for s in board.gtp():
-        print(s)
     print(board)
-    print(board.pachi_evaluate())
-#    group = board.group(board.translate(coord))
+    group = board.group(board.translate(coord))
 
     # The group will be empty if there is no stone.  We're done.
     if not group:
         return json_error('there is no stone here')
 
-#    sgf_coord = board.translate(coord)
-#    group = board.group(sgf_coord)
+    color = board.get(board.translate(coord))
+    if color == 'b':
+        dead_stones = game.dead_stones_by_color.black
+    else:
+        dead_stones = game.dead_stones_by_color.white
 
-    channel_layer = get_channel_layer()
-    response = {
-        'action': 'setScoring',
-        'data'  : {
-            'white': [],
-            'black': [],
-            'dame' : [],
-            'dead_stones_by_color': {
-                'black': [],
-                'white': []
-            }
-        }
-    }
+    # Merge our list of dead stones and remove them from the board.
+    group           = set(board.coords_to_gs(group))
+    new_dead_stones = list(group | set(dead_stones))
 
-    group = f'game_{game.token}'
-    print(f"    setScoring -> {group}")
-    async_to_sync(channel_layer.group_send)(
-            group, {
-                'type'   : 'room.xmit.event',
-                'stream' : f'game_play_{game.token}',
-                'payload': response
-        }
-    )
+    print('REMOVING:', new_dead_stones)
+    for stone in new_dead_stones:
+        board.remove(board.translate(stone))
 
+    print(board)
+    score = board.pachi_evaluate()
+
+    if color == 'b':
+        game.dead_stones_by_color.black = new_dead_stones
+        s  = set(score['dead_stones_by_color']['black'])
+        s |= set(new_dead_stones)
+        score['dead_stones_by_color']['black'] = list(s)
+    else:
+        game.dead_stones_by_color.white = new_dead_stones
+        s  = set(score['dead_stones_by_color']['white'])
+        s |= set(new_dead_stones)
+        score['dead_stones_by_color']['white'] = list(s)
+
+    score_update(game, score, board)
     return json_response({})
+
 
 @csrf_exempt
 def move(request, token, coord):
@@ -508,41 +562,7 @@ def move(request, token, coord):
 
         score = board.pachi_evaluate()
 
-        with transaction.atomic():
-            game = Game.objects.select_for_update().get(token=token)
-            game.state = 'scoring'
-            # We use update or create, as there could be pending DeadStones
-            # set during a previous estimation which was undone.
-            dead = DeadStones.objects.update_or_create(
-                game=game,
-                black=score['dead_stones_by_color']['black'],
-                white=score['dead_stones_by_color']['white']
-            )
-            territory = Territory.objects.update_or_create(
-                game=game,
-                black=score['black'],
-                white=score['white']
-            )
-            game.save()
-
-        # XXX: kludge due to old goshrine javascript
-        if score['dame'] : score['dame']  = [score['dame']]
-        if score['black']: score['black'] = [score['black']]
-        if score['white']: score['white'] = [score['white']]
-        print(score)
-        response = {
-            'action': 'setScoring',
-            'data'  : score
-        }
-        group = f'game_{game.token}'
-        print(f"    setScoring -> {group}")
-        async_to_sync(channel_layer.group_send)(
-                group, {
-                    'type'   : 'room.xmit.event',
-                    'stream' : f'game_play_{game.token}',
-                    'payload': response
-            }
-        )
+        score_update(game, score)
 
     return json_response({})
 
