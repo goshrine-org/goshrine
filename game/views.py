@@ -415,19 +415,17 @@ def done_scoring(request, token):
                 game.black_capture_count = len(game.dead_stones_by_color.white)
                 game.white_capture_count = len(game.dead_stones_by_color.black)
                 game.updated_at          = timezone.now()
-                game.result              = game.score.result
+                game.result              = game.score.result()
                 game.save()
 
-                response = {
-                    'action': 'gameFinished',
-                    'data'  : {
-                        'result'            : game.result,
-                        'scoring_info'      : game_scoreinfo(game),
-                        'black_seconds_left': game.black_seconds_left,
-                        'white_seconds_left': game.white_seconds_left
-                    }
-                }
-                game_broadcast_play(game.token, response)
+                # Tell everyone in the broadcast group the result.
+                game_broadcast_finished(
+                    game.token,
+                    game.result,
+                    game_scoreinfo(game),
+                    game.black_seconds_left,
+                    game.white_seconds_left
+                )
                 return json_response({})
 
             # We are the first to be done with scoring.  Flag it.
@@ -682,8 +680,6 @@ def chat(request, token):
             'text'      : msg.text
         }
     }   
-
-    # Relay the message to everyone in the group, including ourselves.
     game_broadcast_chat(token, response)
 
     return json_response({})

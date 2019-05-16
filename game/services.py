@@ -49,6 +49,18 @@ def game_broadcast_scoring(game_token, scoreinfo):
     }
     game_broadcast_play(game_token, response)
 
+def game_broadcast_finished(game_token, result, scoreinfo, black_time, white_time):
+    response = {
+	'action': 'gameFinished',
+	'data'  : {
+	    'result'            : result,
+	    'scoring_info'      : scoreinfo,
+	    'black_seconds_left': black_time,
+	    'white_seconds_left': white_time
+	}
+    }
+    game_broadcast_play(game_token, response)
+
 def room_user_send(room_id, user_id, msg):
     channel_layer = get_channel_layer()
     async_to_sync(channel_layer.group_send)(
