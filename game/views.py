@@ -13,6 +13,7 @@ from game.models import Board, Game, Move, Territory, MatchRequest, Message, Dea
 from django.utils import timezone
 from .algorithm import Board as BoardSimulator, InvalidMoveError
 from datetime import timedelta
+from .services import game_scoreinfo
 
 token_validator = RegexValidator("^[a-f0-9-]+$")
 
@@ -455,7 +456,29 @@ def done_scoring(request, token):
                 result                   = game.score.black - game.score.white
                 result                   = "{}+{}".format("BW"[result < 0], abs(result))
                 game.result              = result
+
+                channel_layer = get_channel_layer()
+                response = {
+                    'action': 'gameFinished',
+                    'data'  : {
+                        'result'            : game.result,
+                        'scoring_info'      : game_scoreinfo(game),
+                        'black_seconds_left': game.black_seconds_left,
+                        'white_seconds_left': game.white_seconds_left
+                    }
+                }
                 game.save()
+
+                group = f'game_{game.token}'
+                print(f"    updateBoard -> {group}")
+                async_to_sync(channel_layer.group_send)(
+                        group, {
+                            'type'   : 'room.xmit.event',
+                            'stream' : f'game_play_{game.token}',
+                            'payload': response
+                    }
+                )
+
                 return json_response({})
 
             # We are the first to be done with scoring.  Flag it.
@@ -759,11 +782,11 @@ def chat(request, token):
     msg = Message.objects.create(text=message, user_id=request.user.id, game_id=game.id)
 
     response = {  
-	'msg'   : {
-	    'created_at': msg.created_at.strftime('%Y-%m-%dT%H:%M:%SZ'),
-	    'user'      : msg.user.login,
-	    'text'      : msg.text
-	}
+        'msg'   : {
+            'created_at': msg.created_at.strftime('%Y-%m-%dT%H:%M:%SZ'),
+            'user'      : msg.user.login,
+            'text'      : msg.text
+        }
     }   
 
     # Relay the message to everyone in the group, including ourselves.
@@ -771,9 +794,9 @@ def chat(request, token):
     stream        = f'game_chat_{token}'
     channel_layer = get_channel_layer()
     async_to_sync(channel_layer.group_send)(group, {
-	'type'   : 'room.xmit.event',
-	'stream' : stream,
-	'payload': response
+        'type'   : 'room.xmit.event',
+        'stream' : stream,
+        'payload': response
     })  
     print(f'chat -> {group}')
 
