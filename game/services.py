@@ -33,6 +33,22 @@ def game_broadcast_play(game_token, msg):
 def game_broadcast_chat(game_token, msg):
     return game_broadcast(game_token, f'game_chat_{game_token}', msg)
 
+def game_broadcast_resign(game_token, result):
+    response = {
+        'action': 'resignedBy',
+        'data'  : {
+            'result': result
+        }
+    }
+    game_broadcast_play(game_token, response)
+
+def game_broadcast_scoring(game_token, scoreinfo):
+    response = {
+        'action': 'setScoring',
+        'data'  : scoreinfo
+    }
+    game_broadcast_play(game_token, response)
+
 def room_user_send(room_id, user_id, msg):
     channel_layer = get_channel_layer()
     async_to_sync(channel_layer.group_send)(

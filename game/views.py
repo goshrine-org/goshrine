@@ -386,12 +386,7 @@ def score_update(game, score, board):
     if score['white']: score['white'] = [score['white']]
 
     print(score)
-
-    response = {
-        'action': 'setScoring',
-        'data'  : score
-    }
-    game_broadcast_play(game.token, response)
+    game_broadcast_scoring(game.token, score)
 
 @csrf_exempt
 def done_scoring(request, token):
@@ -636,14 +631,7 @@ def resign(request, token):
     except (ValidationError, Game.DoesNotExist):
         raise Http404()
 
-    response = {
-        'action': 'resignedBy',
-        'data'  : {
-            'result': game.result
-        }
-    }
-
-    game_broadcast_play(game.token, response)
+    game_broadcast_resign(game.token, game.result)
     return json_response({})
 
 @csrf_exempt
