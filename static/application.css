@@ -1405,27 +1405,27 @@ table.game_stats tr td.game_stat_label {
 }
 
 .mark.size9.capture-white {
-    background-image: url(/static/mark_capture_w_09.png)
+    background-image: url(/static/mark_territory_b_09.png)
 }
 
 .mark.size13.capture-white {
-    background-image: url(/static/mark_capture_w_13.png)
+    background-image: url(/static/mark_territory_b_13.png)
 }
 
 .mark.size19.capture-white {
-    background-image: url(/static/mark_capture_w_19.png)
+    background-image: url(/static/mark_territory_b_19.png)
 }
 
 .mark.size9.capture-black {
-    background-image: url(/static/mark_capture_b_09.png)
+    background-image: url(/static/mark_territory_w_09.png)
 }
 
 .mark.size13.capture-black {
-    background-image: url(/static/mark_capture_b_13.png)
+    background-image: url(/static/mark_territory_w_13.png)
 }
 
 .mark.size19.capture-black {
-    background-image: url(/static/mark_capture_b_19.png)
+    background-image: url(/static/mark_territory_w_19.png)
 }
 
 .eidogo-player .board .mark.size9 {
