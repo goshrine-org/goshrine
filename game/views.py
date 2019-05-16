@@ -389,7 +389,8 @@ def score_update(game, score, board):
             game=game,
             defaults={
                 'black': score['black'],
-                'white': score['white']
+                'white': score['white'],
+                'dame' : score['dame']
             }
         )
         game.save()
