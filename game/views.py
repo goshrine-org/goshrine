@@ -3,8 +3,6 @@ from django.http import HttpResponse, HttpResponseForbidden, HttpResponseBadRequ
 from django.forms.models import model_to_dict
 from django.views.decorators.csrf import csrf_exempt
 from django.db import transaction
-from channels.layers import get_channel_layer
-from asgiref.sync import async_to_sync
 from .forms import MatchCreateForm, MatchProposeForm, MessageForm
 from django.core.validators import RegexValidator, ValidationError
 from users.models import User
@@ -13,7 +11,7 @@ from game.models import Board, Game, Move, Territory, MatchRequest, Message, Dea
 from django.utils import timezone
 from .algorithm import Board as BoardSimulator, InvalidMoveError
 from datetime import timedelta
-from .services import game_scoreinfo
+from .services import *
 
 token_validator = RegexValidator("^[a-f0-9-]+$")
 
@@ -205,9 +203,6 @@ def match_propose(request):
     except (User.DoesNotExist, Room.DoesNotExist):
         raise Http404()
 
-    # Send the challenge request to the room
-    channel_layer = get_channel_layer()
-
     if request.user.id == black_player_id:
         color = 'white'
     else:
@@ -222,24 +217,13 @@ def match_propose(request):
     html += f'<button onclick="goshrine.rejectMatch({match_req.id})">Reject</button>'
     html = html.format(request.user.login, color, game_info)
 
-    match_request = {
-        'proposed_by_id': request.user.id
-    }
-
+    # Send a match request to specified user in the specified room.
     response = {
         'type'         : 'match_requested',
         'html'         : html,
-        'match_request': match_request
+        'match_request': { 'proposed_by_id': request.user.id }
     }
-
-    # Relay the message to everyone in the group, including ourselves.
-    async_to_sync(channel_layer.group_send)(
-            f"room_{room_id}_user_{challenged_player_id}", {
-                'type'   : 'room.xmit.event',
-                'stream' : f'user_{challenged_player_id}',
-                'payload': response
-        }
-    )
+    room_user_send(room_id, challenged_player_id, response)
 
     # The response back to the client requesting the game.
     # 'errors' can be a list of messages like ['a', 'b']
@@ -330,21 +314,13 @@ def match_accept(request, match_id):
 
         game, board = _game_create(match, match.black_player, match.white_player)
 
+    # Send the challenge reply to the specified user in the specified room.
+    print(f"    match_accepted/{game.token} -> room_{match.room_id}_user_{challenger_id}")
     response = {
         'type'      : 'match_accepted',
         'game_token': game.token,
     }
-
-    # Relay the message to everyone in the group, including ourselves.
-    channel_layer = get_channel_layer()
-    print(f"    match_accepted/{game.token} -> room_{match.room_id}_user_{challenger_id}")
-    async_to_sync(channel_layer.group_send)(
-            f"room_{match.room_id}_user_{challenger_id}", {
-                'type'   : 'room.xmit.event',
-                'stream' : f'user_{challenger_id}',
-                'payload': response
-        }
-    )
+    room_user_send(match.room_id, challenger_id, response)
 
     return redirect(f'/g/{game.token}')
 
@@ -411,20 +387,11 @@ def score_update(game, score, board):
 
     print(score)
 
-    channel_layer = get_channel_layer()
     response = {
         'action': 'setScoring',
         'data'  : score
     }
-    group = f'game_{game.token}'
-    print(f"    setScoring -> {group}")
-    async_to_sync(channel_layer.group_send)(
-            group, {
-                'type'   : 'room.xmit.event',
-                'stream' : f'game_play_{game.token}',
-                'payload': response
-        }
-    )
+    game_broadcast_play(game.token, response)
 
 @csrf_exempt
 def done_scoring(request, token):
@@ -441,23 +408,21 @@ def done_scoring(request, token):
                 return HttpResponseForbidden()
 
             if game.state != 'scoring':
-                return json_error('game is not being scored')
+                return HttpResponseForbidden()
 
             if game.user_done_scoring is not None:
                 # If we signal we're done scoring twice, we do not count.
                 if game.user_done_scoring_id == request.user.id:
-                    return json_error('you finished scoring already')
+                    return HttpResponseForbidden()
 
                 # Totally done scoring.
                 game.state               = 'finished'
                 game.black_capture_count = len(game.dead_stones_by_color.white)
                 game.white_capture_count = len(game.dead_stones_by_color.black)
                 game.updated_at          = timezone.now()
-                result                   = game.score.black - game.score.white
-                result                   = "{}+{}".format("BW"[result < 0], abs(result))
-                game.result              = result
+                game.result              = game.score.result
+                game.save()
 
-                channel_layer = get_channel_layer()
                 response = {
                     'action': 'gameFinished',
                     'data'  : {
@@ -467,18 +432,7 @@ def done_scoring(request, token):
                         'white_seconds_left': game.white_seconds_left
                     }
                 }
-                game.save()
-
-                group = f'game_{game.token}'
-                print(f"    updateBoard -> {group}")
-                async_to_sync(channel_layer.group_send)(
-                        group, {
-                            'type'   : 'room.xmit.event',
-                            'stream' : f'game_play_{game.token}',
-                            'payload': response
-                    }
-                )
-
+                game_broadcast_play(game.token, response)
                 return json_response({})
 
             # We are the first to be done with scoring.  Flag it.
@@ -598,7 +552,6 @@ def move(request, token, coord):
     except (ValidationError, Game.DoesNotExist):
         raise Http404()
 
-    channel_layer = get_channel_layer()
     response = {
         'action': 'updateBoard',
         'data'  : {
@@ -608,34 +561,11 @@ def move(request, token, coord):
             'white_seconds_left': game.white_seconds_left
         }
     }
-
-    group = f'game_{game.token}'
-    print(f"    updateBoard -> {group}")
-    async_to_sync(channel_layer.group_send)(
-            group, {
-                'type'   : 'room.xmit.event',
-                'stream' : f'game_play_{game.token}',
-                'payload': response
-        }
-    )
+    game_broadcast_play(game.token, response)
 
     if game_end:
-        response = {
-            'action': 'estimatingScore',
-        }
-
-        group = f'game_{game.token}'
-        print(f"    estimatingScore -> {group}")
-        async_to_sync(channel_layer.group_send)(
-                group, {
-                    'type'   : 'room.xmit.event',
-                    'stream' : f'game_play_{game.token}',
-                    'payload': response
-            }
-        )
-
+        game_broadcast_play(game.token, { 'action': 'estimatingScore' })
         score = board.pachi_evaluate()
-
         score_update(game, score, board)
 
     return json_response({})
@@ -677,21 +607,7 @@ def attempt_start(request, token):
     if not(game.black_seen and game.white_seen):
         return HttpResponse('')
 
-    channel_layer = get_channel_layer()
-    response = {
-        'action': 'game_started'
-    }
-
-    group = f'game_{game.token}'
-    print(f"    game_started -> {group}")
-    async_to_sync(channel_layer.group_send)(
-            group, {
-                'type'   : 'room.xmit.event',
-                'stream' : f'game_play_{game.token}',
-                'payload': response
-        }
-    )
-
+    game_broadcast_play(game.token, { 'action': 'game_started' })
     return HttpResponse('')
 
 @csrf_exempt
@@ -720,7 +636,6 @@ def resign(request, token):
     except (ValidationError, Game.DoesNotExist):
         raise Http404()
 
-    channel_layer = get_channel_layer()
     response = {
         'action': 'resignedBy',
         'data'  : {
@@ -728,16 +643,7 @@ def resign(request, token):
         }
     }
 
-    group = f'game_{game.token}'
-    print(f"    game_started -> {group}")
-    async_to_sync(channel_layer.group_send)(
-            group, {
-                'type'   : 'room.xmit.event',
-                'stream' : f'game_play_{game.token}',
-                'payload': response
-        }
-    )
-
+    game_broadcast_play(game.token, response)
     return json_response({})
 
 @csrf_exempt
@@ -790,14 +696,6 @@ def chat(request, token):
     }   
 
     # Relay the message to everyone in the group, including ourselves.
-    group         = f'game_{token}'
-    stream        = f'game_chat_{token}'
-    channel_layer = get_channel_layer()
-    async_to_sync(channel_layer.group_send)(group, {
-        'type'   : 'room.xmit.event',
-        'stream' : stream,
-        'payload': response
-    })  
-    print(f'chat -> {group}')
+    game_broadcast_chat(token, response)
 
     return json_response({})

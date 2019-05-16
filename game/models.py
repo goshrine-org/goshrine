@@ -132,6 +132,10 @@ class Score(models.Model):
     white                 = models.FloatField(null=False)
     black                 = models.FloatField(null=False)
 
+    def result(self):
+        delta = self.black - self.white
+        return "{}+{}".format("BW"[delta < 0], abs(delta))
+
 class MessageManager(models.Manager):
     def messages(self, game):
         return Message.objects.filter(game=game).order_by('created_at')
