@@ -210,6 +210,7 @@ class Game(models.Model):
                       (Q(resigned_by=F('white_player')) & Q(result__exact='B+R')),
                 name='resignation_invalid'
             ),
+            models.CheckConstraint(check=Q(turn__in=['b', 'w']), name='turn_constraint'),
         ]
 
     objects      = GameManager()

@@ -98,3 +98,43 @@ class ConstraintsTestCase(TestCase):
                 resigned_by=self.p1,
                 result="XXX"
             )
+
+    def test_constraint_turn_b(self):
+        g = Game.objects.create(
+            black_player=self.p1,
+            white_player=self.p1,
+            turn='b'
+        )
+        self.assertIsNotNone(g)
+
+    def test_constraint_turn_w(self):
+        g = Game.objects.create(
+            black_player=self.p1,
+            white_player=self.p1,
+            turn='w'
+        )
+        self.assertIsNotNone(g)
+
+    def test_constraint_turn_B(self):
+        with self.assertRaises(IntegrityError):
+            Game.objects.create(
+                black_player=self.p1,
+                white_player=self.p2,
+                turn='B'
+            )
+
+    def test_constraint_turn_W(self):
+        with self.assertRaises(IntegrityError):
+            Game.objects.create(
+                black_player=self.p1,
+                white_player=self.p2,
+                turn='W'
+            )
+
+    def test_constraint_turn_x(self):
+        with self.assertRaises(IntegrityError):
+            Game.objects.create(
+                black_player=self.p1,
+                white_player=self.p2,
+                turn='x'
+            )
