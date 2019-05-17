@@ -2,6 +2,7 @@ import io
 import uuid
 from itertools import chain
 from django.db import models
+from django.db.models import F, Q
 from django.utils import timezone
 from django.contrib.postgres.fields import ArrayField
 
@@ -153,6 +154,9 @@ def token_default():
     return str(uuid.uuid4())
 
 class GameQuerySet(models.QuerySet):
+    def in_play(self):
+        return self.filter(state='in-play')
+
     def played_by(self, user_id):
         qs  = self.filter(black_player_id=user_id)
         qs |= self.filter(white_player_id=user_id)
@@ -168,9 +172,25 @@ class GameQuerySet(models.QuerySet):
         qs |= self.filter(white_player_id=user_id, result__startswith='B')
         return qs
 
+    def resign(self, user_id):
+        """Resign the games in this queryset played by 'user_id'."""
+        qs = self.in_play().played_by(user_id)
+        return qs.update(
+            state='finished',
+            result=models.Case(
+                models.When(black_player_id=user_id, then=models.Value('W+R')),
+                models.When(white_player_id=user_id, then=models.Value('B+R'))
+            ),
+            resigned_by_id=user_id,
+            updated_at=models.functions.Now()
+        )
+
 class GameManager(models.Manager):
     def get_queryset(self):
         return GameQuerySet(self.model, using=self._db)
+
+    def in_play(self):
+        return self.get_queryset().in_play()
 
     def played_by(self, user_id):
         return self.get_queryset().played_by(user_id)
@@ -182,12 +202,22 @@ class GameManager(models.Manager):
         return self.get_queryset().lost_by(user_id)
 
 class Game(models.Model):
+    class Meta:
+        constraints = [
+            models.CheckConstraint(
+                check=Q(resigned_by=None) |
+                      (Q(resigned_by=F('black_player')) & Q(result__exact='W+R')) |
+                      (Q(resigned_by=F('white_player')) & Q(result__exact='B+R')),
+                name='resignation_invalid'
+            ),
+        ]
+
     objects      = GameManager()
 
     id           = models.BigAutoField(unique=True, primary_key=True)
     started_at   = models.DateTimeField(default=None, null=True, blank=True)
     token        = models.CharField(max_length=36, default=token_default, blank=False, unique=True, db_index=True)
-    state        = models.CharField(max_length=16, default='new')
+    state        = models.CharField(max_length=16, default='new', db_index=True)
     black_seen   = models.BooleanField(default=False)
     white_seen   = models.BooleanField(default=False)
     turn         = models.CharField(max_length=1, default='b')
@@ -201,7 +231,7 @@ class Game(models.Model):
     komi         = models.FloatField(blank=True, null=False, default=6.5)
     updated_at   = models.DateTimeField(default=timezone.now)
     game_type    = models.CharField(max_length=16)
-    result       = models.CharField(max_length=8, null=True, blank=True, db_index=True)
+    result       = models.CharField(max_length=8, default='', null=False, blank=True, db_index=True)
     handicap     = models.PositiveSmallIntegerField(null=False, default=0)
     timed        = models.BooleanField(default=False)
     main_time    = models.PositiveIntegerField(null=True, default=None, blank=True)

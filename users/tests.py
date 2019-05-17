@@ -1,4 +1,3 @@
-from django.contrib.postgres.operations import CreateExtension
 from django.db.utils import IntegrityError
 from django.test import TestCase
 from users.models import User
