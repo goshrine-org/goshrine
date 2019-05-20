@@ -83,7 +83,7 @@ def game_finish_timeout(game, clock):
     game.save(update_fields=['result', 'state', 'updated_at'])
 
     # Tell everyone in the broadcast group the result.
-    transaction.on_commit(game_broadcast_finished(
+    transaction.on_commit(lambda: game_broadcast_finished(
 	game.token,
 	result,
 	black_time=clock.black_seconds_left,
@@ -127,12 +127,14 @@ def game_clock_update(game, move=False):
             if game.turn == 'b':
                 left = game_seconds_left(clock, clock.black_seconds_left, elapsed)
                 if left <= 0:
+                    clock.black_seconds_left = left
                     game_finish_timeout(game, clock)
                 elif move:
                     clock.black_seconds_left = left
             elif game.turn == 'w':
                 left = game_seconds_left(clock, clock.white_seconds_left, elapsed)
                 if left <= 0:
+                    clock.white_seconds_left = left
                     game_finish_timeout(game, clock)
                 elif move:
                     clock.white_seconds_left = left
