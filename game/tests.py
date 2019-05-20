@@ -9,6 +9,14 @@ class ConstraintsTestCase(TestCase):
         self.p2 = User.objects.create(login='player2', email='player2@test.com')
         self.u  = User.objects.create(login='someone', email='someone@test.com')
 
+    def test_constraint_resignation_none_result_br(self):
+        with self.assertRaises(IntegrityError):
+            Game.objects.create(
+                black_player=self.p1,
+                white_player=self.p2,
+                result="B+R"
+            )
+
     def test_constraint_resignation_u_result_br(self):
         with self.assertRaises(IntegrityError):
             Game.objects.create(

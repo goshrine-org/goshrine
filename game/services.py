@@ -80,7 +80,7 @@ def game_finish_timeout(game, clock):
     game.state      = 'finished'
     game.updated_at = timezone.now()
     game.result     = result
-    game.save(fields=['result', 'state', 'updated_at'])
+    game.save(update_fields=['result', 'state', 'updated_at'])
 
     # Tell everyone in the broadcast group the result.
     transaction.on_commit(game_broadcast_finished(
@@ -90,33 +90,40 @@ def game_finish_timeout(game, clock):
 	white_time=clock.white_seconds_left
     ))
 
-def game_clock_update(game):
+def game_clock_update(game, move=False):
     if game.state != 'in-play':
-        return False
+        return None
 
     try:
         with transaction.atomic():
             clock   = Timer.objects.select_for_update().get(game_id=game.id)
             now     = timezone.now()
+
             elapsed = now - clock.updated_at
-            elapsed = elapsed.total_seconds()
+            elapsed = int(elapsed.total_seconds())
 
             if game.turn == 'b':
                 if clock.black_seconds_left < elapsed:
                     clock.black_seconds_left = 0
                     game_finish_timeout(game, clock)
-                else:
+                elif move:
                     clock.black_seconds_left -= elapsed
             elif game.turn == 'w':
                 if clock.white_seconds_left < elapsed:
                     clock.white_seconds_left = 0
                     game_finish_timeout(game, clock)
-                else:
+                elif move:
                     clock.white_seconds_left -= elapsed
 
-            clock.updated_at = now
+            # We only update the clock when a move has actually been made.
+            # This dampens database activity a bit, and is in line with the
+            # original goshrine.com javascript.
+            if move:
+                clock.updated_at = now
+
+            # XXX: can be optimized.  Not always necessary.
             clock.save()
     except Timer.DoesNotExist:
-        return False
+        return None
 
-    return True
+    return clock

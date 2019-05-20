@@ -6,7 +6,7 @@
 <script type="text/javascript">
     var gameToken = "{{ game.token }}";
     var roomId = {{ game.room.id }};
-    var serverTimeOffset = -((new Date()) - parseISO8601("2019-04-30T12:53:13Z"));
+    var serverTimeOffset = -((new Date()) - parseISO8601("{% now "Y-m-d\TH:i:s\Z" %}"));
     {% if user.is_anonymous %}
     var currentUser = "guest";
     {% else %}
@@ -210,11 +210,11 @@
             <td class="game_stat_label">Rank</td>
             <td id="black-rank" class="player_rank">{{ game.black_player.rank }}</td>
           </tr>
-          {% if game.timed %}
+	  {% if clock is not None %}
           <tr>
-            <td id="white-time" class="time_remaining">{{ game.white_player.seconds_left }}</td>
+            <td id="white-time" class="time_remaining">{{ clock.white_seconds_left }}</td>
             <td id="time_label" class="game_stat_label">Time</td>
-            <td id="black-time" class="time_remaining">{{ game.black_player.seconds_left }}</td>
+            <td id="black-time" class="time_remaining">{{ clock.black_seconds_left }}</td>
           </tr>
           {% endif %}
         <tr>

@@ -1,4 +1,4 @@
-from django.shortcuts import render, redirect
+from django.shortcuts import render, redirect, get_object_or_404
 from django.http import HttpResponse, HttpResponseForbidden, HttpResponseBadRequest, HttpResponseNotAllowed, JsonResponse, Http404
 from django.forms.models import model_to_dict
 from django.views.decorators.csrf import csrf_exempt
@@ -24,14 +24,10 @@ def json_error(msg, **kwargs):
     return json_response(data)
 
 def game(request, token):
-    try:
-        token_validator(token)
-        game = Game.objects.get(token=token)
-    except (ValidationError, User.DoesNotExist):
-        # Original goshrine.com returns 'Game not found!' in plaintext
-        raise Http404()
-
-    return render(request, 'game/game.html', {'game': game})
+    with transaction.atomic():
+        game  = get_object_or_404(Game.objects.select_for_update(), token=token)
+        clock = game_clock_update(game)
+    return render(request, 'game/game.html', {'game': game, 'clock': clock})
 
 # Validate whether the requested 'user_id' is playing this game.
 def game_validate_user(game, user_id):
@@ -42,23 +38,15 @@ def game_validate_user(game, user_id):
     return False
 
 def game_sgf(request, token):
-    try:
-        token_validator(token)
-        game = Game.objects.get(token=token)
-    except (ValidationError, User.DoesNotExist):
-        # Original goshrine.com returns 'Game not found!' in plaintext
-        raise Http404()
-
-    res = HttpResponse(game.sgf(), content_type='application/x-go-sgf; charset=utf-8')
-    return res
+    with transaction.atomic():
+        game = get_object_or_404(Game.objects.select_for_update(), token=token)
+        game_clock_update(game)
+    return HttpResponse(game.sgf(), content_type='application/x-go-sgf; charset=utf-8')
 
 def game_for_eidogo(request, token):
-    try:
-        token_validator(token)
-        game = Game.objects.get(token=token)
-    except (ValidationError, User.DoesNotExist):
-        # Original goshrine.com returns 'Game not found!' in plaintext
-        raise Http404()
+    with transaction.atomic():
+        game  = get_object_or_404(Game.objects.select_for_update(), token=token)
+        clock = game_clock_update(game)
 
     s = { 'dead_stones_by_color': {} }
     try:
@@ -82,18 +70,28 @@ def game_for_eidogo(request, token):
     g['black_capture_count'] = game.black_capture_count
     g['black_player_id']     = game.black_player.id
     g['black_player_rank']   = game.black_player_rank
-    g['black_seconds_left']  = game.black_seconds_left
-    g['byo_yomi']            = game.byo_yomi
+
+    # Fill in timer information.
+    if clock is not None:
+        g['black_seconds_left']  = clock.black_seconds_left
+        g['white_seconds_left']  = clock.white_seconds_left
+        g['byo_yomi']            = clock.byo_yomi
+        g['main_time']           = clock.main_time
+        g['timed']               = True
+        g['turn_started_at']     = clock.updated_at.strftime('%Y-%m-%dT%H:%M:%SZ')
+    else:
+        g['timed']               = False
+
     if game.state != 'finished':
         g['finished_at']     = None
     else:
         g['finished_at']     = game.updated_at.strftime('%Y-%m-%d')
+
     g['game_type']           = game.game_type
     g['handicap']            = game.handicap
     g['id']                  = game.board.id
     g['komi']                = game.komi
     g['last_move']           = game.last_move
-    g['main_time']           = game.main_time
     g['match_request_id']    = game.match_request_id
     g['move_number']         = game.move_number
     g['resigned_by_id']      = game.resigned_by_id
@@ -101,10 +99,9 @@ def game_for_eidogo(request, token):
     g['room_id']             = game.room.id
     g['started_at']          = game.started_at
     g['state']               = game.state
-    g['timed']               = game.timed
     g['token']               = game.token
     g['turn']                = game.turn
-    g['turn_started_at']     = game.turn_started_at
+
     g['updated_at']          = game.updated_at
     if game.user_done_scoring is None:
         g['user_done_scoring'] = None
@@ -114,7 +111,6 @@ def game_for_eidogo(request, token):
     g['white_capture_count'] = game.white_capture_count
     g['white_player_id']     = game.white_player.id
     g['white_player_rank']   = game.white_player_rank
-    g['white_seconds_left']  = game.white_seconds_left
     g['scoring_info']        = s
 
     msg = {}
@@ -256,18 +252,11 @@ def _game_create(match, black, white):
             match_request=match,
             game_type='playervsplayer',
             handicap=match.handicap,
-            timed=match.timed,
-            main_time=match.main_time,
-            byo_yomi=match.byo_yomi,
             room_id=match.room_id,
             white_player_rank=white.rank,
             black_player_rank=black.rank,
             black_player=black,
             white_player=white,
-            black_seconds_left=black_seconds_left,
-            white_seconds_left=white_seconds_left,
-            byo_yomi_periods=byo_yomi_periods,
-            byo_yomi_seconds=byo_yomi_seconds,
         )
 
         board = Board.objects.create(
@@ -276,19 +265,26 @@ def _game_create(match, black, white):
             ko_pos=None
         )
 
+        if match.timed:
+            timer = Timer.objects.create(
+                game=game,
+                main_time=match.main_time,
+                byo_yomi=match.byo_yomi,
+                byo_yomi_periods=byo_yomi_periods,
+                byo_yomi_seconds=byo_yomi_seconds,
+                black_seconds_left=black_seconds_left,
+                white_seconds_left=white_seconds_left
+        )
+
     return game, board
 
 @csrf_exempt
 def match_accept(request, match_id):
-
     # We have to ensure the game is not accepted twice.  We lock the relevant
     # MatchRequest row/object with select_for_update and do not release it
     # until after we have made a game referencing it.
     with transaction.atomic():
-        try:
-            match = MatchRequest.objects.select_for_update().get(pk=match_id)
-        except MatchRequest.DoesNotExist:
-            raise Http404()
+        match = get_object_or_404(MatchRequest.objects.select_for_update(), pk=match_id)
 
         try:
             game = match.game
@@ -393,46 +389,41 @@ def done_scoring(request, token):
     if request.method != 'POST':
         return HttpResponseNotAllowed(['POST'])
 
-    try:
-        token_validator(token)
+    with transaction.atomic():
+        game = get_object_or_404(Game.objects.select_for_update(), token=token)
 
-        with transaction.atomic():
-            game = Game.objects.select_for_update().get(token=token)
+        if not game_validate_user(game, request.user.id):
+            return HttpResponseForbidden()
 
-            if not game_validate_user(game, request.user.id):
+        if game.state != 'scoring':
+            return HttpResponseForbidden()
+
+        if game.user_done_scoring is not None:
+            # If we signal we're done scoring twice, we do not count.
+            if game.user_done_scoring_id == request.user.id:
                 return HttpResponseForbidden()
 
-            if game.state != 'scoring':
-                return HttpResponseForbidden()
-
-            if game.user_done_scoring is not None:
-                # If we signal we're done scoring twice, we do not count.
-                if game.user_done_scoring_id == request.user.id:
-                    return HttpResponseForbidden()
-
-                # Totally done scoring.
-                game.state               = 'finished'
-                game.black_capture_count = len(game.dead_stones_by_color.white)
-                game.white_capture_count = len(game.dead_stones_by_color.black)
-                game.updated_at          = timezone.now()
-                game.result              = game.score.result()
-                game.save()
-
-                # Tell everyone in the broadcast group the result.
-                game_broadcast_finished(
-                    game.token,
-                    game.result,
-                    game_scoreinfo(game),
-                    game.black_seconds_left,
-                    game.white_seconds_left
-                )
-                return json_response({})
-
-            # We are the first to be done with scoring.  Flag it.
-            game.user_done_scoring_id = request.user.id
+            # Totally done scoring.
+            game.state               = 'finished'
+            game.black_capture_count = len(game.dead_stones_by_color.white)
+            game.white_capture_count = len(game.dead_stones_by_color.black)
+            game.updated_at          = timezone.now()
+            game.result              = game.score.result()
             game.save()
-    except (ValidationError, Game.DoesNotExist):
-        raise Http404()
+
+            # Tell everyone in the broadcast group the result.
+            game_broadcast_finished(
+                game.token,
+                game.result,
+                game_scoreinfo(game),
+                0, #game.black_seconds_left,
+                0 #game.white_seconds_left
+            )
+            return json_response({})
+
+        # We are the first to be done with scoring.  Flag it.
+        game.user_done_scoring_id = request.user.id
+        game.save()
 
     return json_response({})
 
@@ -441,19 +432,14 @@ def mark_group_dead(request, token, coord):
     if len(coord) > 2:
         return HttpResponseBadRequest()
 
-    try:
-        token_validator(token)
+    with transaction.atomic():
+        game = get_object_or_404(Game.objects, token=token)
 
-        with transaction.atomic():
-            game = Game.objects.get(token=token)
+        if not game_validate_user(game, request.user.id):
+            return HttpResponseForbidden()
 
-            if not game_validate_user(game, request.user.id):
-                return HttpResponseForbidden()
-
-            if game.state != 'scoring':
-                return json_error('game is not being scored')
-    except (ValidationError, Game.DoesNotExist):
-        raise Http404()
+        if game.state != 'scoring':
+            return json_error('game is not being scored')
 
     # We work with groups here, so we first reconstruct the board.
     board = board_simulate(game)
@@ -503,55 +489,57 @@ def move(request, token, coord):
         return HttpResponseBadRequest()
 
     game_end = False
-    try:
-        token_validator(token)
 
-        # Hold a row lock on 'game' until we have created a a new move and
-        # updated the relevant game data.
-        with transaction.atomic():
-            fields = ['turn', 'move_number', 'version', 'last_move', 'updated_at']
-            game = Game.objects.select_for_update().get(token=token)
+    # Hold a row lock on 'game' until we have created a a new move and
+    # updated the relevant game data.
+    with transaction.atomic():
+        fields = ['turn', 'turn_started_at', 'move_number', 'version', 'last_move', 'updated_at']
+        game   = get_object_or_404(Game.objects.select_for_update(), token=token)
+        clock  = game_clock_update(game, move=True)
 
-            if game.state != 'in-play':
-                return json_response({})
+        if not game_validate_user(game, request.user.id):
+            return HttpResponseForbidden()
 
-            if game.turn == 'b':
-                if game.black_player_id != request.user.id:
-                    msg = "It's not your turn!"
-                    return json_response({'error': msg})
-                game.turn = 'w'
-            elif game.turn == 'w':
-                if game.white_player_id != request.user.id:
-                    msg = "It's not your turn!"
-                    return json_response({'error': msg})
-                game.turn = 'b'
+        if game.state != 'in-play':
+            return HttpResponseForbidden()
 
-            if game.last_move == 'pass' and coord == 'pass':
-                game_end = True
-                game.state = 'estimating-score'
-                fields.append('state')
+        if game.turn == 'b':
+            if game.black_player_id != request.user.id:
+                msg = "It's not your turn!"
+                return json_response({'error': msg})
+            game.turn = 'w'
+        elif game.turn == 'w':
+            if game.white_player_id != request.user.id:
+                msg = "It's not your turn!"
+                return json_response({'error': msg})
+            game.turn = 'b'
 
-            try:
-                board = board_simulate(game, coord)
-            except InvalidMoveError as e:
-                return json_response({'error': str(e)})
+        if game.last_move == 'pass' and coord == 'pass':
+            game_end = True
+            game.state = 'estimating-score'
+            fields.append('state')
 
-            Move.objects.create(game=game, number=game.move_number, coordinate=coord)
-            game.move_number += 1
-            game.version     += 1
-            game.last_move    = coord
-            game.updated_at   = timezone.now()
-            game.save(update_fields=fields)
-    except (ValidationError, Game.DoesNotExist):
-        raise Http404()
+        try:
+            board = board_simulate(game, coord)
+        except InvalidMoveError as e:
+            return json_response({'error': str(e)})
+
+        Move.objects.create(game=game, number=game.move_number, coordinate=coord)
+        game.move_number += 1
+        game.version     += 1
+        game.last_move    = coord
+        game.updated_at   = timezone.now()
+        game.turn_started_at = clock.updated_at
+        game.save(update_fields=fields)
 
     response = {
         'action': 'updateBoard',
         'data'  : {
             'version'           : game.version,
             'move'              : game.last_move,
-            'black_seconds_left': game.black_seconds_left,
-            'white_seconds_left': game.white_seconds_left
+            'black_seconds_left': clock.black_seconds_left,
+            'white_seconds_left': clock.white_seconds_left,
+            'turn_started_at'   : clock.updated_at.strftime('%Y-%m-%dT%H:%M:%SZ')
         }
     }
     game_broadcast_play(game.token, response)
@@ -568,34 +556,30 @@ def attempt_start(request, token):
     if request.method != 'POST':
         return HttpResponseNotAllowed(['POST'])
 
-    try:
-        token_validator(token)
+    # We will modify the game row, so we hold a transactional lock on it.
+    with transaction.atomic():
+        fields = []
+        game   = get_object_or_404(Game.objects.select_for_update(), token=token)
 
-        # We will modify the game row, so we hold a transactional lock on it.
-        with transaction.atomic():
-            fields = []
-            game   = Game.objects.select_for_update().get(token=token)
+        if not game_validate_user(game, request.user.id):
+            return HttpResponseForbidden()
 
-            if game.black_player_id == request.user.id:
-                game.black_seen = True
-                fields.append("black_seen")
-            elif game.white_player_id == request.user.id:
-                game.white_seen = True
-                fields.append("white_seen")
-            else:
-                return HttpResponseForbidden()
+        if game.black_player_id == request.user.id:
+            game.black_seen = True
+            fields.append("black_seen")
+        elif game.white_player_id == request.user.id:
+            game.white_seen = True
+            fields.append("white_seen")
 
-            if game.state != 'new':
-                return HttpResponseForbidden()
+        if game.state != 'new':
+            return HttpResponseForbidden()
 
-            if game.black_seen and game.white_seen:
-                game.started_at = timezone.now()
-                game.state      = 'in-play'
-                fields += "started_at", "state"
+        if game.black_seen and game.white_seen:
+            game.started_at = timezone.now()
+            game.state      = 'in-play'
+            fields += "started_at", "state"
 
-            game.save(update_fields=fields)
-    except (ValidationError, Game.DoesNotExist):
-        raise Http404()
+        game.save(update_fields=fields)
 
     if not(game.black_seen and game.white_seen):
         return HttpResponse('')
@@ -608,38 +592,18 @@ def resign(request, token):
     try:
         token_validator(token)
 
-        with transaction.atomic():
-            game = Game.objects.select_for_update().get(token=token)
-
-            if game.state != 'in-play':
-                return HttpResponseForbidden()
-
-            game.state          = 'finished'
-            game.resigned_by_id = request.user.id
-            game.updated_at     = timezone.now()
-
-            if game.black_player_id == request.user.id:
-                game.result = "W+R"
-            elif game.white_player_id == request.user.id:
-                game.result = "B+R"
-            else:
-                return HttpResponseForbidden()
-
-            game.save(update_fields=['state', 'resigned_by_id', 'updated_at', 'result'])
+        Game.objects.filter(token=token).resign(request.user.id)
     except (ValidationError, Game.DoesNotExist):
         raise Http404()
 
+    game = Game.objects.get(token=token)
     game_broadcast_resign(game.token, game.result)
     return json_response({})
 
 @csrf_exempt
 def messages(request, token):
-    try:
-        token_validator(token)
-        game     = Game.objects.only('token').get(token=token)
-        messages = Message.objects.filter(game_id=game.id).select_related('user').order_by('created_at')
-    except (ValidationError, Game.DoesNotExist):
-        raise Http404()
+    game     = get_object_or_404(Game.objects.only('token'), token=token)
+    messages = Message.objects.filter(game_id=game.id).select_related('user').order_by('created_at')
 
     json_messages = []
     for m in messages:
@@ -665,13 +629,8 @@ def chat(request, token):
 
     message = form.cleaned_data['text']
 
-    try:
-        token_validator(token)
-        game = Game.objects.only('token').get(token=token)
-    except (ValidationError, Game.DoesNotExist):
-        raise Http404()
-
-    msg = Message.objects.create(text=message, user_id=request.user.id, game_id=game.id)
+    game = get_object_or_404(Game.objects.only('token'), token=token)
+    msg  = Message.objects.create(text=message, user_id=request.user.id, game_id=game.id)
 
     response = {  
         'msg'   : {

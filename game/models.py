@@ -150,6 +150,35 @@ class Message(models.Model):
     user       = models.ForeignKey('users.User', on_delete=models.CASCADE, related_name='game_messages')
     game       = models.ForeignKey('game.Game', on_delete=models.CASCADE, related_name='messages')
 
+
+class TimerQuerySet(models.QuerySet):
+    pass
+
+class TimerManager(models.Manager):
+    def get_queryset(self):
+        return TimerQuerySet(self.model, using=self._db)
+
+class Timer(models.Model):
+    id                 = models.BigAutoField(unique=True, primary_key=True)
+    game               = models.OneToOneField('game.Game', on_delete=models.CASCADE, related_name='timer')
+    main_time          = models.PositiveIntegerField(default=1800)
+    byo_yomi           = models.BooleanField(default=True)
+    byo_yomi_periods   = models.PositiveSmallIntegerField(default=5)
+    byo_yomi_seconds   = models.PositiveSmallIntegerField(default=30)
+
+    updated_at         = models.DateTimeField(default=timezone.now)
+    black_seconds_left = models.PositiveIntegerField(default=1950)
+    white_seconds_left = models.PositiveIntegerField(default=1950)
+
+    def sgf(self):
+        sio = io.StringIO()
+        sio.write(f'TM[{self.main_time * 60}]\n')
+        if self.byo_yomi:
+            sio.write(f'OT[{self.byo_yomi_periods}x{self.byo_yomi_seconds} byo-yomi]\n')
+        s = sio.getvalue()
+        sio.close()
+        return s
+
 def token_default():
     return str(uuid.uuid4())
 
@@ -211,6 +240,11 @@ class Game(models.Model):
                 name='resignation_invalid'
             ),
             models.CheckConstraint(check=Q(turn__in=['b', 'w']), name='turn_constraint'),
+            models.CheckConstraint(
+                check=Q(result__exact='') | Q(result__startswith='B+') |
+                      Q(result__startswith='W+'),
+                name='result_constraint_player'
+            ),
         ]
 
     objects      = GameManager()
@@ -234,11 +268,6 @@ class Game(models.Model):
     game_type    = models.CharField(max_length=16)
     result       = models.CharField(max_length=8, default='', null=False, blank=True, db_index=True)
     handicap     = models.PositiveSmallIntegerField(null=False, default=0)
-    timed        = models.BooleanField(default=False)
-    main_time    = models.PositiveIntegerField(null=True, default=None, blank=True)
-    byo_yomi     = models.BooleanField(null=True, default=None, blank=True)
-    black_seconds_left = models.PositiveIntegerField(null=True, default=None, blank=True)
-    white_seconds_left = models.PositiveIntegerField(null=True, default=None, blank=True)
     turn_started_at = models.DateTimeField(default=None, null=True, blank=True)
     room         = models.ForeignKey('rooms.Room', related_name='games', on_delete=models.SET_NULL, null=True, blank=True)
     version      = models.PositiveIntegerField(default=0)
@@ -250,8 +279,6 @@ class Game(models.Model):
     score        = models.ForeignKey('game.Score', related_name='games', on_delete=models.SET_NULL, default=None, null=True, blank=True)
     black_player = models.ForeignKey('users.User', related_name='+', on_delete=models.CASCADE)
     white_player = models.ForeignKey('users.User', related_name='+', on_delete=models.CASCADE)
-    byo_yomi_periods = models.PositiveSmallIntegerField(null=True, default=None, blank=True)
-    byo_yomi_seconds = models.PositiveSmallIntegerField(null=True, default=None, blank=True)
 
     def sgf(self):
         sio = io.StringIO()
@@ -265,11 +292,12 @@ class Game(models.Model):
         sio.write(f'WR[{self.white_player_rank}]\n')
         sio.write(f'PB[{self.black_player.login}]\n')
         sio.write(f'BR[{self.black_player_rank}]\n')
-        # XXX: TODO DT
-        if self.timed:
-            sio.write(f'TM[{self.main_time * 60}]\n')
-            if self.byo_yomi:
-                sio.write(f'OT[{self.byo_yomi_periods}x{self.byo_yomi_seconds} byo-yomi]\n')
+
+        try:
+            sio.write(self.timer.sgf() + '\n')
+        except Game.timer.RelatedObjectDoesNotExist:
+            pass
+
         sio.write(f'RE[{self.result}]\n')
         if self.handicap != 0:
             sio.write(HandicapStone.objects.sgf(self) + '\n')
