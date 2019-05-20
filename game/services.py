@@ -114,12 +114,15 @@ def game_seconds_left(clock, left, elapsed):
     return left + (clock.byo_yomi_seconds - rem)
 
 def game_clock_update(game, move=False):
-    if game.state != 'in-play':
-        return None
-
     try:
         with transaction.atomic():
             clock   = Timer.objects.select_for_update().get(game_id=game.id)
+
+            # We don't update the clock when we're not in play, but there
+            # may be inquiries for finished games.
+            if game.state != 'in-play':
+                return clock
+
             now     = timezone.now()
             elapsed = now - clock.updated_at
             elapsed = int(elapsed.total_seconds())
