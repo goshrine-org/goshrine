@@ -189,7 +189,9 @@
             {% else %}
               <img alt="Nopic" src="{% static "/nopic.jpg" %}" />
             {% endif %}
+	    {% if game.white_player.user_type == "bot" %}
               <img alt="Robot_badge" class="status_icon" src="{% static "robot_badge.png" %}" title="This account is played by a computer program." />
+	    {% endif %}
             </a>
             <img alt="Stone_white_19" class="player_color" src="{% static "/stone_white_19.png" %}" />
           </div>
@@ -201,6 +203,9 @@
             {% else %}
               <img alt="Nopic" src="{% static "/nopic.jpg" %}" />
             {% endif %}
+	    {% if game.black_player.user_type == "bot" %}
+              <img alt="Robot_badge" class="status_icon" src="{% static "robot_badge.png" %}" title="This account is played by a computer program." />
+	    {% endif %}
             </a>
           </div>
         </div>

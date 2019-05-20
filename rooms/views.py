@@ -28,7 +28,7 @@ def members(request, room_id):
         msg['login']      = user['login']
         msg['rank']       = user['rank']
         msg['avatar_pic'] = user['avatar_pic']
-        msg['user_type']  = ''
+        msg['user_type']  = user['user_type']
         msg['available']  = user['available']
         json_messages.append(msg)
 
