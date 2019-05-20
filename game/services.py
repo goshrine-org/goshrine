@@ -90,6 +90,29 @@ def game_finish_timeout(game, clock):
 	white_time=clock.white_seconds_left
     ))
 
+def game_seconds_left(clock, left, elapsed):
+    # First we check for clock expiration
+    if left <= elapsed:
+        return 0
+
+    # No byo-yomi means we can just return real elapsed time/
+    if not clock.byo_yomi:
+        return left - elapsed
+
+    # Elapsed time doesn't put us in byo-yomi yet.
+    byo_yomi_threshold = clock.byo_yomi_periods * clock.byo_yomi_seconds
+    left -= elapsed
+    if left >= byo_yomi_threshold:
+        return left
+
+    # Clean division with no remainder and we're done.
+    rem = left % clock.byo_yomi_seconds
+    if rem == 0:
+        return left
+
+    # We round what is left up to the next byo yomi period.
+    return left + (clock.byo_yomi_seconds - rem)
+
 def game_clock_update(game, move=False):
     if game.state != 'in-play':
         return None
@@ -98,22 +121,21 @@ def game_clock_update(game, move=False):
         with transaction.atomic():
             clock   = Timer.objects.select_for_update().get(game_id=game.id)
             now     = timezone.now()
-
             elapsed = now - clock.updated_at
             elapsed = int(elapsed.total_seconds())
 
             if game.turn == 'b':
-                if clock.black_seconds_left < elapsed:
-                    clock.black_seconds_left = 0
+                left = game_seconds_left(clock, clock.black_seconds_left, elapsed)
+                if left <= 0:
                     game_finish_timeout(game, clock)
                 elif move:
-                    clock.black_seconds_left -= elapsed
+                    clock.black_seconds_left = left
             elif game.turn == 'w':
-                if clock.white_seconds_left < elapsed:
-                    clock.white_seconds_left = 0
+                left = game_seconds_left(clock, clock.white_seconds_left, elapsed)
+                if left <= 0:
                     game_finish_timeout(game, clock)
                 elif move:
-                    clock.white_seconds_left -= elapsed
+                    clock.white_seconds_left = left
 
             # We only update the clock when a move has actually been made.
             # This dampens database activity a bit, and is in line with the
