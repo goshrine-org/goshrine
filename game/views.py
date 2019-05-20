@@ -642,3 +642,14 @@ def chat(request, token):
     game_broadcast_chat(token, response)
 
     return json_response({})
+
+@csrf_exempt
+def time_elapsed(request, token):
+    if request.method != 'POST':
+        return HttpResponseNotAllowed(['POST'])
+
+    with transaction.atomic():
+        game  = get_object_or_404(Game.objects.select_for_update(), token=token)
+        clock = game_clock_update(game)
+
+    return json_response({})

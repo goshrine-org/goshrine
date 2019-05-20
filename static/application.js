@@ -12203,7 +12203,7 @@ eidogo.Rules.prototype = {init:function(a) {
       0 >= d && 0 < a && 0 == a % 10 && b == this.currentColor && $(e).effect("highlight", {color:"#ff8888"}, 3E3);
     }
   }, updateClocks:function() {
-    if (!(0 >= this.mainTime)) {
+    if (this.mainTime >= 0) {
       this.turnStartedAt ? elapsed = (new Date - this.turnStartedAt) / 1E3 : elapsed = 0;
       var a = this.blackSecondsLeft, b = this.whiteSecondsLeft;
       "in-play" == this.gameState && ("W" == this.currentColor ? b -= elapsed : a -= elapsed);
@@ -12249,7 +12249,7 @@ eidogo.Rules.prototype = {init:function(a) {
     q(this.dom.scoringDialog);
   }, startGameTimer:function() {
     this.updateClocks();
-    0 < this.mainTime && "in-play" == this.gameState && (this.dom.container.gameTimer && this.clearGameTimer(), this.dom.container.gameTimer = setInterval(this.updateClocks.bind(this), 1E3));
+    this.mainTime >= 0 && "in-play" == this.gameState && (this.dom.container.gameTimer && this.clearGameTimer(), this.dom.container.gameTimer = setInterval(this.updateClocks.bind(this), 1E3));
   }, clearGameTimer:function() {
     this.dom.container.gameTimer && (clearInterval(this.dom.container.gameTimer), this.dom.container.gameTimer = null);
   }, setGameTimeFromServer:function(a) {
