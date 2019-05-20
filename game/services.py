@@ -1,7 +1,9 @@
+from django.db import transaction
+from django.utils import timezone
 from django.forms.models import model_to_dict
 from channels.layers import get_channel_layer
 from asgiref.sync import async_to_sync
-from .models import DeadStones, Score, Territory
+from .models import DeadStones, Score, Territory, Timer
 
 def game_scoreinfo(game):
     # Fill in the territory in the scoreinfo dict.
@@ -49,7 +51,7 @@ def game_broadcast_scoring(game_token, scoreinfo):
     }
     game_broadcast_play(game_token, response)
 
-def game_broadcast_finished(game_token, result, scoreinfo, black_time, white_time):
+def game_broadcast_finished(game_token, result, scoreinfo=None, black_time=None, white_time=None):
     response = {
 	'action': 'gameFinished',
 	'data'  : {
@@ -70,3 +72,51 @@ def room_user_send(room_id, user_id, msg):
             'payload': msg
         }
     )
+
+def game_finish_timeout(game, clock):
+    if clock.black_seconds_left == 0: result = 'W+T'
+    elif clock.white_seconds_left == 0: result = 'B+T'
+
+    game.state      = 'finished'
+    game.updated_at = timezone.now()
+    game.result     = result
+    game.save(fields=['result', 'state', 'updated_at'])
+
+    # Tell everyone in the broadcast group the result.
+    transaction.on_commit(game_broadcast_finished(
+	game.token,
+	result,
+	black_time=clock.black_seconds_left,
+	white_time=clock.white_seconds_left
+    ))
+
+def game_clock_update(game):
+    if game.state != 'in-play':
+        return False
+
+    try:
+        with transaction.atomic():
+            clock   = Timer.objects.select_for_update().get(game_id=game.id)
+            now     = timezone.now()
+            elapsed = now - clock.updated_at
+            elapsed = elapsed.total_seconds()
+
+            if game.turn == 'b':
+                if clock.black_seconds_left < elapsed:
+                    clock.black_seconds_left = 0
+                    game_finish_timeout(game, clock)
+                else:
+                    clock.black_seconds_left -= elapsed
+            elif game.turn == 'w':
+                if clock.white_seconds_left < elapsed:
+                    clock.white_seconds_left = 0
+                    game_finish_timeout(game, clock)
+                else:
+                    clock.white_seconds_left -= elapsed
+
+            clock.updated_at = now
+            clock.save()
+    except Timer.DoesNotExist:
+        return False
+
+    return True
