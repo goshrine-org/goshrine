@@ -249,15 +249,22 @@ def _game_create(match, black, white):
         white_seconds_left = None
 
     with transaction.atomic():
+        handicap_stones = game_handicap_default(match.board_size, match.handicap)
+        turn            = "bw"[match.handicap > 0]
+        komi            = [6.5, 0.5][match.handicap > 0]
+
         game = Game.objects.create(
             match_request=match,
             game_type='playervsplayer',
             handicap=match.handicap,
+            handicap_stones=handicap_stones,
             room_id=match.room_id,
             white_player_rank=white.rank,
             black_player_rank=black.rank,
             black_player=black,
             white_player=white,
+            turn=turn,
+            komi=komi
         )
 
         board = Board.objects.create(

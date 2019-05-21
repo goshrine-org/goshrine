@@ -154,3 +154,19 @@ def game_clock_update(game, move=False):
         return None
 
     return clock
+
+def game_handicap_default(board_size, handicap):
+    handicap_coords = {
+        19: {
+            2: ["pd", "dp"],
+            3: ["pd", "dp", "pp"],
+            4: ["pd", "dp", "pp", "dd"],
+            5: ["pd", "dp", "pp", "dd", "jj"],
+            6: ["pd", "dp", "pp", "dd", "dj", "pj"],
+            7: ["pd", "dp", "pp", "dd", "dj", "pj", "jj"],
+            8: ["pd", "dp", "pp", "dd", "dj", "pj", "jd", "jp"],
+            9: ["pd", "dp", "pp", "dd", "dj", "pj", "jd", "jp", "jj"]
+        }
+    }
+
+    return handicap_coords[board_size][handicap]

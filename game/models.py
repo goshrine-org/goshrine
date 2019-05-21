@@ -58,33 +58,6 @@ class DeadStones(models.Model):
     black = ArrayField(models.CharField(max_length=2, blank=False, null=False), blank=True, null=False)
     white = ArrayField(models.CharField(max_length=2, blank=False, null=False), blank=True, null=False)
 
-class HandicapStoneManager(models.Manager):
-    def handicap_stones(self, game):
-        t = HandicapStone.objects.filter(game=game)
-        return t
-
-    def handicap_stones_values_list(self, game):
-        return self.handicap_stones(game).values_list('coordinate')
-
-    def sgf(self, game):
-        sio = io.StringIO()
-
-        sio.write('AB')
-        for c in chain.from_iterable(self.handicap_stones_values_list(game)):
-            sio.write(f'[{c}]')
-
-        s = sio.getvalue()
-        sio.close()
-        return s
-
-class HandicapStone(models.Model):
-    objects = HandicapStoneManager()
-
-    class Meta:
-        unique_together = (('game', 'coordinate'),)
-    game       = models.ForeignKey('game.Game', related_name='handicap_stones', on_delete=models.CASCADE)
-    coordinate = models.CharField(max_length=2, blank=False, null=False)
-
 class Stone(models.Model):
     class Meta:
         # Ensure that for a given board, we do not repeat the index.
@@ -268,6 +241,7 @@ class Game(models.Model):
     game_type    = models.CharField(max_length=16)
     result       = models.CharField(max_length=8, default='', null=False, blank=True, db_index=True)
     handicap     = models.PositiveSmallIntegerField(null=False, default=0)
+    handicap_stones = ArrayField(models.CharField(max_length=2, blank=False, null=False), blank=True, null=False)
     turn_started_at = models.DateTimeField(default=None, null=True, blank=True)
     room         = models.ForeignKey('rooms.Room', related_name='games', on_delete=models.SET_NULL, null=True, blank=True)
     version      = models.PositiveIntegerField(default=0)
@@ -285,7 +259,7 @@ class Game(models.Model):
         sio.write('(;FF[4]GM[1]CA[UTF-8]')
         sio.write('AP[GoShrine:1.0]RU[Japanese]\n')
         sio.write(f'SZ[{self.board.size}]\n')
-        sio.write(f'H[{self.handicap}]\n')
+        sio.write(f'HA[{self.handicap}]\n')
         sio.write(f'KM[{self.komi}]\n')
         sio.write('PC[GoShrine - http://goshrine.org]\n')
         sio.write(f'PW[{self.white_player.login}]\n')
@@ -300,7 +274,11 @@ class Game(models.Model):
 
         sio.write(f'RE[{self.result}]\n')
         if self.handicap != 0:
-            sio.write(HandicapStone.objects.sgf(self) + '\n')
+            sio.write('AB')
+            for c in self.handicap_stones:
+                sio.write(f'[{c}]')
+            sio.write('\n')
+
         sio.write(Move.objects.sgf(self) + '\n')
 
         try:
