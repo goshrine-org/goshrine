@@ -326,6 +326,9 @@ def match_accept(request, match_id):
 def board_simulate(game, coord=None):
     board = BoardSimulator(game.board_size)
 
+    if game.handicap:
+        board.handicap_set(board.coords_from_gs(game.handicap_stones))
+
     # Reconstruct the board until the current move.
     for move in game.moves.all().order_by('number'):
         if move.coordinate == 'pass':

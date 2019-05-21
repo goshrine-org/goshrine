@@ -19,11 +19,27 @@ class Board(object):
         self.removed   = []
         self.rules     = "japanese"
         self.komi      = 6.5
+        self.handicap  = []
+
+    def handicap_set(self, handicap):
+        handicap = list(handicap)
+        if not handicap: return
+
+        self.handicap = list(handicap)
+        self.turn     = 'w'
+        self.komi     = 0.5
+
+        for c in self.handicap:
+            self.set(c, 'b')
 
     def translate(self, coord):
         x = ord(coord[0]) - ord('a')
         y = self.size - (ord(coord[1]) - ord('a')) - 1
         return (x, y)
+
+    def coords_from_gs(self, coords):
+        for coord in coords:
+            yield self.translate(coord)
 
     def __str__(self):
         s = ''
@@ -192,12 +208,19 @@ class Board(object):
         x, y = self.coord_validate(coord)
         return chr(ord('A') + x + (x > 7)) + str(y + 1)
 
+    def gtp_coords(self, coords):
+        for coord in coords:
+            yield self.gtp_coord(coord)
+
     def gtp(self):
         print(self.moves)
         yield f'kgs-rules {self.rules}'
         yield f'boardsize {self.size}'
         yield f'komi {self.komi}'
         yield 'clear_board'
+
+        if self.handicap:
+            yield 'set_free_handicap {}'.format(' '.join(self.gtp_coords(self.handicap)))
 
         for i, move in enumerate(self.moves):
             if move == 'pass': continue
