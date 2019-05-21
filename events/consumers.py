@@ -3,8 +3,7 @@ from channels.db import database_sync_to_async
 from django.db.models import F
 from django.utils import timezone
 from django.utils import html
-from .models import Channel
-from rooms.models import Room, Message, RoomChannel
+from rooms.models import Room, Message, RoomUser
 from game.models import Game
 from django.db import transaction
 
@@ -24,16 +23,34 @@ class TestConsumer(AsyncJsonWebsocketConsumer):
         }
 
     @database_sync_to_async
-    def db_room_user_add(self, room, user, channel):
+    def db_room_user_add(self, room, user):
         with transaction.atomic():
-            RoomChannel.objects.create(room=room, channel_id=channel)
-            return RoomChannel.objects.filter(room=room, channel__user=user).count()
+            ru, created = RoomUser.objects.select_for_update().get_or_create(
+                room_id=room.id,
+                user_id=user.id,
+                defaults={ 'count': 1 }
+            )
+
+            if not created:
+                ru.count += 1
+                ru.save()
+
+            return ru.count
 
     @database_sync_to_async
-    def db_room_user_del(self, room, user, channel):
+    def db_room_user_del(self, room, user):
         with transaction.atomic():
-            RoomChannel.objects.filter(room=room, channel_id=channel).first().delete()
-            return RoomChannel.objects.filter(room=room, channel__user=user).count()
+            ru = RoomUser.objects.select_for_update().get(
+                room_id=room.id,
+                user_id=user.id
+            )
+
+            ru.count -= 1
+
+            if ru.count == 0: ru.delete()
+            else: ru.save()
+
+            return ru.count
 
     @database_sync_to_async
     def db_user_get(self, user_id):
@@ -45,9 +62,9 @@ class TestConsumer(AsyncJsonWebsocketConsumer):
     @database_sync_to_async
     def db_list_room(self, room):
         fields_as = ('id', 'login', 'rank', 'avatar_pic', 'user_type', 'available')
-        fields_q  = ('channel__user__' + field for field in fields_as)
+        fields_q  = ('user__' + field for field in fields_as)
         fields_as = { k: F(v) for (k, v) in zip(fields_as, fields_q) }
-        return RoomChannel.objects.filter(room=room).select_related('channel__user').values(*fields_q).distinct().values(**fields_as)
+        return RoomUser.objects.filter(room=room).select_related('user').values(*fields_q).distinct().values(**fields_as)
 
     @database_sync_to_async
     def get_room(self, room_id):
@@ -66,19 +83,6 @@ class TestConsumer(AsyncJsonWebsocketConsumer):
     @database_sync_to_async
     def db_msg_save(self, user, room, message, time):
         Message.objects.create(text=message, created_at=time, user=user, room=room)
-
-    @database_sync_to_async
-    def db_channel_add(self, user, channel):
-        if user.is_authenticated:
-            Channel.objects.create(user=user, channel=channel)
-
-    @database_sync_to_async
-    def db_channel_del(self, user, channel):
-        Channel.objects.filter(channel=channel).delete()
-
-    @database_sync_to_async
-    def db_channel_touch(self, user, channel):
-        Channel.objects.filter(pk=channel).update(last_seen=timezone.now())
 
     def user_to_group(self, user_id):
         return f"user_{user_id}"
@@ -121,8 +125,6 @@ class TestConsumer(AsyncJsonWebsocketConsumer):
             )
             print(f"    {self.username}/{self.channel_name} joined broadcast group {group}")
 
-        await self.db_channel_add(user, self.channel_name)
-
     async def disconnect(self, close_code):
         user = self.scope.get('user', None)
 
@@ -147,14 +149,7 @@ class TestConsumer(AsyncJsonWebsocketConsumer):
             )
             print(f"    {self.username}/{self.channel_name} left broadcast group {group}")
 
-        await self.db_channel_del(user, self.channel_name)
-
     async def receive_json(self, data):
-        # Update Channel.last_seen when we receive data on this channel.
-        user = self.scope.get('user', None)
-        if user is not None and user.is_authenticated:
-            await self.db_channel_touch(user, self.channel_name)
-
         print(f'receive_json {data}')
         if 'stream' not in data or 'payload' not in data:
             return await self.close()
@@ -272,8 +267,9 @@ class TestConsumer(AsyncJsonWebsocketConsumer):
         # Flag in the database which room the current user joined, and create
         # an event message.  We don't announce our arrival if we have multiple
         # connections to this room.
-        if await self.db_room_user_add(room, user, self.channel_name) > 1:
-            print(f"    {user.login} is in room_{room.id} more than once.")
+        count = await self.db_room_user_add(room, user)
+        if count > 1:
+            print(f"    {user.login} is in room_{room.id} {count} times.")
             return
 
         # Notify everyone in the group we arrived.
@@ -338,7 +334,7 @@ class TestConsumer(AsyncJsonWebsocketConsumer):
         # notification to everyone in the room.
         if user and user.is_authenticated:
             # See if we have the room completely, if so, notify.
-            if await self.db_room_user_del(room, user, self.channel_name) == 0:
+            if await self.db_room_user_del(room, user) == 0:
                 response = {
                     'action'    : 'user_leave',
                     'id'        : user.id,

@@ -6,7 +6,7 @@ from django.db import transaction
 from .forms import MatchCreateForm, MatchProposeForm, MessageForm
 from django.core.validators import RegexValidator, ValidationError
 from users.models import User
-from rooms.models import Room, RoomChannel
+from rooms.models import Room
 from game.models import Game, Move, Territory, MatchRequest, Message, DeadStones, Score
 from django.utils import timezone
 from .algorithm import Board as BoardSimulator, InvalidMoveError

@@ -1,7 +1,7 @@
 from django.shortcuts import render
 from django.http import JsonResponse, Http404
 from django.db.models import F
-from .models import Message, Room, RoomChannel
+from .models import Message, Room, RoomUser
 from users.models import User
 from django.utils.html import escape
 from django.conf import settings
@@ -12,13 +12,13 @@ def index(request):
 
 def members(request, room_id):
     fields_as = ('id', 'login', 'rank', 'avatar_pic', 'user_type', 'available')
-    fields_q  = ('channel__user__' + field for field in fields_as)
+    fields_q  = ('user__' + field for field in fields_as)
     fields_as = { k: F(v) for (k, v) in zip(fields_as, fields_q) }
 
     # Create a JOIN over the roomchannel, channel, and user tables, then pick
     # the user fields we actually want.
-    rcs = RoomChannel.objects.filter(room=room_id) \
-                     .select_related('channel__user').values(*fields_q) \
+    rcs = RoomUser.objects.filter(room_id=room_id) \
+                     .select_related('user').values(*fields_q) \
                      .distinct().values(**fields_as)
 
     json_messages = []

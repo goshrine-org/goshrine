@@ -14,9 +14,15 @@ class Room(models.Model):
     owner      = models.ForeignKey('users.User', on_delete=models.CASCADE,
                                    related_name='rooms_owned')
 
-class RoomChannel(models.Model):
-    channel = models.ForeignKey('events.Channel', related_name='room', on_delete=models.CASCADE)
-    room    = models.ForeignKey('rooms.Room', related_name='channels', on_delete=models.CASCADE)
+class RoomUser(models.Model):
+    class Meta:
+        constraints = [
+            models.UniqueConstraint(fields=['room', 'user'], name='unique_room_user')
+        ]
+
+    room  = models.ForeignKey('rooms.Room', related_name='+', on_delete=models.CASCADE)
+    user  = models.ForeignKey('users.User', related_name='+', on_delete=models.CASCADE)
+    count = models.PositiveSmallIntegerField(blank=True, null=False, default=1)
 
 class Message(models.Model):
     id         = models.BigAutoField(unique=True, primary_key=True)
