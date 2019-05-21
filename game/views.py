@@ -15,7 +15,8 @@ from .services import *
 
 token_validator = RegexValidator("^[a-f0-9-]+$")
 
-def json_response(msg, **kwargs):
+def json_response(msg=None, **kwargs):
+    if msg is None: msg = {}
     params = { 'separators': (',', ':') }
     return JsonResponse(msg, safe=False, json_dumps_params=params, **kwargs)
 
@@ -354,7 +355,6 @@ def score_update(game, score, board):
     score['score']['white'] = score['score']['white_territory_count'] + board.captures['w'] + float(game.komi)
 
     with transaction.atomic():
-        game = Game.objects.select_for_update().get(token=game.token)
         game.state = 'scoring'
         game.score = Score.objects.get_or_create(**score['score'])[0]
         # We use update or create, as there could be pending DeadStones
@@ -419,31 +419,30 @@ def done_scoring(request, token):
                 0, #game.black_seconds_left,
                 0 #game.white_seconds_left
             )
-            return json_response({})
+            return json_response()
 
         # We are the first to be done with scoring.  Flag it.
         game.user_done_scoring_id = request.user.id
         game.save()
 
-    return json_response({})
+    return json_response()
 
 @csrf_exempt
+@transaction.atomic
 def mark_group_dead(request, token, coord):
     if len(coord) > 2:
         return HttpResponseBadRequest()
 
-    with transaction.atomic():
-        game = get_object_or_404(Game.objects, token=token)
+    game = get_object_or_404(Game.objects.select_for_update(), token=token)
 
-        if not game_validate_user(game, request.user.id):
-            return HttpResponseForbidden()
+    if not game_validate_user(game, request.user.id):
+        return HttpResponseForbidden()
 
-        if game.state != 'scoring':
-            return json_error('game is not being scored')
+    if game.state != 'scoring':
+        return json_error('game is not being scored')
 
     # We work with groups here, so we first reconstruct the board.
     board = board_simulate(game)
-
     print(board)
     group = board.group(board.translate(coord))
 
@@ -452,36 +451,93 @@ def mark_group_dead(request, token, coord):
         return json_error('there is no stone here')
 
     color = board.get(board.translate(coord))
-    if color == 'b':
-        dead_stones = game.dead_stones_by_color.black
-    else:
-        dead_stones = game.dead_stones_by_color.white
+    dsb   = game.dead_stones_by_color.black
+    dsw   = game.dead_stones_by_color.white
 
     # Merge our list of dead stones and remove them from the board.
-    group           = set(board.coords_to_gs(group))
-    new_dead_stones = list(group | set(dead_stones))
+    group   = set(board.coords_to_gs(group))
+    
+    if color == 'b':
+        dsb_new = list(set(dsb) | group)
+        dsw_new = dsw
+    else:
+        dsb_new = dsb
+        dsw_new = list(set(dsw) | group)
 
-    print('REMOVING:', new_dead_stones)
-    for stone in new_dead_stones:
-        board.remove(board.translate(stone))
+    for s in dsb_new:
+        board.remove(board.translate(s))
+
+    for s in dsw_new:
+        board.remove(board.translate(s))
 
     print(board)
     score = board.pachi_evaluate()
 
-    if color == 'b':
-        game.dead_stones_by_color.black = new_dead_stones
-        s  = set(score['dead_stones_by_color']['black'])
-        s |= set(new_dead_stones)
-        score['dead_stones_by_color']['black'] = list(s)
-    else:
-        game.dead_stones_by_color.white = new_dead_stones
-        s  = set(score['dead_stones_by_color']['white'])
-        s |= set(new_dead_stones)
-        score['dead_stones_by_color']['white'] = list(s)
+    game.dead_stones_by_color.black = dsb_new
+    s  = set(score['dead_stones_by_color']['black'])
+    s |= set(dsb_new)
+    score['dead_stones_by_color']['black'] = list(s)
+
+    game.dead_stones_by_color.white = dsw_new
+    s  = set(score['dead_stones_by_color']['white'])
+    s |= set(dsw_new)
+    score['dead_stones_by_color']['white'] = list(s)
 
     score_update(game, score, board)
-    return json_response({})
+    return json_response()
 
+@csrf_exempt
+@transaction.atomic
+def mark_group_alive(request, token, coord):
+    if len(coord) > 2:
+        return HttpResponseBadRequest()
+
+    game = get_object_or_404(Game.objects.select_for_update(), token=token)
+
+    if not game_validate_user(game, request.user.id):
+        return HttpResponseForbidden()
+
+    if game.state != 'scoring':
+        return json_error('game is not being scored')
+
+    # We work with groups here, so we first reconstruct the board.
+    board = board_simulate(game)
+    print(board)
+    group = board.group(board.translate(coord))
+
+    # The group will be empty if there is no stone.  We're done.
+    if not group:
+        return json_error('there is no stone here')
+
+    dsb = game.dead_stones_by_color.black
+    dsw = game.dead_stones_by_color.white
+
+    # Merge our list of dead stones and remove them from the board.
+    group   = set(board.coords_to_gs(group))
+    dsb_new = list(set(dsb) - group)
+    dsw_new = list(set(dsw) - group)
+
+    for s in dsb_new:
+        board.remove(board.translate(s))
+
+    for s in dsw_new:
+        board.remove(board.translate(s))
+
+    print(board)
+    score = board.pachi_evaluate()
+
+    game.dead_stones_by_color.black = dsb_new
+    s  = set(score['dead_stones_by_color']['black'])
+    s |= set(dsb_new)
+    score['dead_stones_by_color']['black'] = list(s)
+
+    game.dead_stones_by_color.white = dsw_new
+    s  = set(score['dead_stones_by_color']['white'])
+    s |= set(dsw_new)
+    score['dead_stones_by_color']['white'] = list(s)
+
+    score_update(game, score, board)
+    return json_response()
 
 @csrf_exempt
 def move(request, token, coord):
@@ -529,7 +585,12 @@ def move(request, token, coord):
         game.version     += 1
         game.last_move    = coord
         game.updated_at   = timezone.now()
-        game.turn_started_at = clock.updated_at
+
+        if clock is not None:
+            game.turn_started_at = clock.updated_at
+        else:
+            game.turn_started_at = timezone.now()
+
         game.save(update_fields=fields)
 
     response = {
@@ -537,11 +598,14 @@ def move(request, token, coord):
         'data'  : {
             'version'           : game.version,
             'move'              : game.last_move,
-            'black_seconds_left': clock.black_seconds_left,
-            'white_seconds_left': clock.white_seconds_left,
-            'turn_started_at'   : clock.updated_at.strftime('%Y-%m-%dT%H:%M:%SZ')
         }
     }
+
+    if clock is not None:
+        response['data']['black_seconds_left'] = clock.black_seconds_left
+        response['data']['white_seconds_left'] = clock.white_seconds_left
+        response['data']['turn_started_at']    = clock.updated_at.strftime('%Y-%m-%dT%H:%M:%SZ')
+
     game_broadcast_play(game.token, response)
 
     if game_end:
