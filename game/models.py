@@ -58,15 +58,6 @@ class DeadStones(models.Model):
     black = ArrayField(models.CharField(max_length=2, blank=False, null=False), blank=True, null=False)
     white = ArrayField(models.CharField(max_length=2, blank=False, null=False), blank=True, null=False)
 
-class Stone(models.Model):
-    class Meta:
-        # Ensure that for a given board, we do not repeat the index.
-        unique_together = (('board', 'index'),)
-
-    board      = models.ForeignKey('game.Board', related_name='stones', on_delete=models.CASCADE)
-    index      = models.PositiveSmallIntegerField(blank=False, null=False)
-    color      = models.CharField(max_length=1, blank=False, null=True)
-
 class Board(models.Model):
     go_game    = models.OneToOneField('game.Game', related_name='board', on_delete=models.CASCADE)
     size       = models.PositiveSmallIntegerField(blank=False, null=False, default=19)
