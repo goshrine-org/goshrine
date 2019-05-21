@@ -166,6 +166,26 @@ def game_handicap_default(board_size, handicap):
             7: ["pd", "dp", "pp", "dd", "dj", "pj", "jj"],
             8: ["pd", "dp", "pp", "dd", "dj", "pj", "jd", "jp"],
             9: ["pd", "dp", "pp", "dd", "dj", "pj", "jd", "jp", "jj"]
+        },
+        13: {
+            2: ["jd", "dj"],
+            3: ["jd", "dj", "jj"],
+            4: ["jd", "dj", "jj", "dd"],
+            5: ["jd", "dj", "jj", "dd", "gg"],
+            6: ["jd", "dj", "jj", "dd", "dg", "jg"],
+            7: ["jd", "dj", "jj", "dd", "dg", "jg", "gg"],
+            8: ["jd", "dj", "jj", "dd", "dg", "jg", "gd", "gj"],
+            9: ["jd", "dj", "jj", "dd", "dg", "jg", "gd", "gj", "gg"]
+        },
+        9: {
+            2: ["cg", "gc"],
+            3: ["cg", "gc", "gg"],
+            4: ["cg", "gc", "gg", "cc"],
+            5: ["cg", "gc", "gg", "cc", "ee"],
+            6: ["cg", "gc", "gg", "cc", "ce", "ge"],
+            7: ["cg", "gc", "gg", "cc", "ce", "ge", "ee"],
+            8: ["cg", "gc", "gg", "cc", "ce", "ge", "ec", "eg"],
+            9: ["cg", "gc", "gg", "cc", "ce", "ge", "ec", "eg", "ee"]
         }
     }
 
