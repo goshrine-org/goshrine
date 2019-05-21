@@ -58,11 +58,6 @@ class DeadStones(models.Model):
     black = ArrayField(models.CharField(max_length=2, blank=False, null=False), blank=True, null=False)
     white = ArrayField(models.CharField(max_length=2, blank=False, null=False), blank=True, null=False)
 
-class Board(models.Model):
-    go_game    = models.OneToOneField('game.Game', related_name='board', on_delete=models.CASCADE)
-    size       = models.PositiveSmallIntegerField(blank=False, null=False, default=19)
-    ko_pos     = models.CharField(max_length=2, blank=False, null=True)
-
 class MoveManager(models.Manager):
     def moves(self, game):
         return Move.objects.filter(game=game).order_by('number')
@@ -245,11 +240,14 @@ class Game(models.Model):
     black_player = models.ForeignKey('users.User', related_name='+', on_delete=models.CASCADE)
     white_player = models.ForeignKey('users.User', related_name='+', on_delete=models.CASCADE)
 
+    board_size   = models.PositiveSmallIntegerField(blank=False, null=False, default=19)
+    ko_pos       = models.CharField(max_length=2, blank=True, null=False, default='')
+
     def sgf(self):
         sio = io.StringIO()
         sio.write('(;FF[4]GM[1]CA[UTF-8]')
         sio.write('AP[GoShrine:1.0]RU[Japanese]\n')
-        sio.write(f'SZ[{self.board.size}]\n')
+        sio.write(f'SZ[{self.board_size}]\n')
         sio.write(f'HA[{self.handicap}]\n')
         sio.write(f'KM[{self.komi}]\n')
         sio.write('PC[GoShrine - http://goshrine.org]\n')

@@ -7,7 +7,7 @@ from .forms import MatchCreateForm, MatchProposeForm, MessageForm
 from django.core.validators import RegexValidator, ValidationError
 from users.models import User
 from rooms.models import Room, RoomChannel
-from game.models import Board, Game, Move, Territory, MatchRequest, Message, DeadStones, Score
+from game.models import Game, Move, Territory, MatchRequest, Message, DeadStones, Score
 from django.utils import timezone
 from .algorithm import Board as BoardSimulator, InvalidMoveError
 from datetime import timedelta
@@ -90,7 +90,7 @@ def game_for_eidogo(request, token):
 
     g['game_type']           = game.game_type
     g['handicap']            = game.handicap
-    g['id']                  = game.board.id
+    g['id']                  = game.id
     g['komi']                = game.komi
     g['last_move']           = game.last_move
     g['match_request_id']    = game.match_request_id
@@ -264,13 +264,8 @@ def _game_create(match, black, white):
             black_player=black,
             white_player=white,
             turn=turn,
-            komi=komi
-        )
-
-        board = Board.objects.create(
-            go_game=game,
-            size=match.board_size,
-            ko_pos=None
+            komi=komi,
+            board_size=match.board_size,
         )
 
         if match.timed:
@@ -284,7 +279,7 @@ def _game_create(match, black, white):
                 white_seconds_left=white_seconds_left
         )
 
-    return game, board
+    return game
 
 @csrf_exempt
 def match_accept(request, match_id):
@@ -316,7 +311,7 @@ def match_accept(request, match_id):
         else:
             challenger_id = match.black_player_id
 
-        game, board = _game_create(match, match.black_player, match.white_player)
+        game = _game_create(match, match.black_player, match.white_player)
 
     # Send the challenge reply to the specified user in the specified room.
     print(f"    match_accepted/{game.token} -> room_{match.room_id}_user_{challenger_id}")
@@ -329,7 +324,7 @@ def match_accept(request, match_id):
     return redirect(f'/g/{game.token}')
 
 def board_simulate(game, coord=None):
-    board = BoardSimulator(game.board.size)
+    board = BoardSimulator(game.board_size)
 
     # Reconstruct the board until the current move.
     for move in game.moves.all().order_by('number'):
