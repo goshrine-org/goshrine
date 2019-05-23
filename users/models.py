@@ -42,8 +42,6 @@ class User(AbstractBaseUser):
     REQUIRED_FIELDS    = ['email']
 
     # XXX: TODO https://stackoverflow.com/questions/26309431/django-admin-can-i-define-fields-order
-
-    id                 = models.BigAutoField(unique=True, primary_key=True)
     login              = UsernameField(max_length=28, blank=False, null=False, unique=True, db_index=True)
     email              = CIEmailField(max_length=255, unique=True, db_index=True)
     rank               = models.CharField(max_length=5, default='?')

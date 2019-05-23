@@ -17,9 +17,16 @@ class Command(BaseCommand):
 
     def handle_file(self, pathname):
         with open(pathname, 'r') as f:
-            self.game_add(json.load(f))
+            j = json.load(f)
+
+            if isinstance(j, list):
+                for game in json.load(f):
+                    self.game_add(game)
+            else:
+                self.game_add(j)
 
     def game_add(self, game):
+        print(f"Adding game {game['token']}.")
         if 'board' not in game or not game['board']:
             raise CommandError(f'No board defined in game')
 
@@ -37,6 +44,11 @@ class Command(BaseCommand):
         if timer['timed'] is None: timer['timed'] = False
         if timer['byo_yomi'] is None: timer['byo_yomi'] = False
 
+        # Work around a goshrine.com bug where timed=True and main_time=0
+        # This creates an untimed game in practice.
+        if timer['main_time'] == 0:
+            timer['timed'] = False
+
         if timer['byo_yomi']:
             timer['byo_yomi_periods'] = game['byo_yomi_periods']
             timer['byo_yomi_seconds'] = game['byo_yomi_seconds']
@@ -46,8 +58,6 @@ class Command(BaseCommand):
             game['turn_started_at'], game['black_seconds_left'],
             game['white_seconds_left'])
 
-#        handicap_stones = game['handicap_stones']
-#        if handicap_stones is None: handicap_stones = []
         del(game['board'], game['score'])
         del(game['white_player'], game['black_player'])
         del(game['subscribed_users'], game['board_size'])
@@ -63,21 +73,39 @@ class Command(BaseCommand):
         # the game definition.
         if score:
             game['score'], created = self.score_add(score)
-            print(f"game score: {game['score']}")
 
         game['board_size'] = board['size']
         game['ko_pos']     = board['ko_pos']
         if game['ko_pos'] is None: game['ko_pos'] = ''
         if game['result'] is None: game['result'] = ''
 
+        # Work around a bug: scoring data can be set for a resigned game.
+        # This also sets the result to other than +R, which we do not accept.
+        if game['resigned_by_id'] is not None:
+            if game['black_player_id'] == game['resigned_by_id']:
+                game['result'] = 'W+R'
+            elif game['white_player_id'] == game['resigned_by_id']:
+                game['result'] = 'B+R'
+            else:
+                raise RuntimeError('inconsistent data')
+
         with transaction.atomic():
-            game = Game.objects.create(**game)
+#            game = Game.objects.create(**game)
             self.timer_add(game, timer)
             self.board_add(game, board)
 
     def timer_add(self, game, timer):
         if not timer['timed']: return
         del(timer['timed'])
+
+        print(timer)
+        input()
+
+        # Workaround for negative times on goshrine.com
+        if timer['black_seconds_left'] < 0:
+            timer['black_seconds_left'] = 0
+        if timer['white_seconds_left'] < 0:
+            timer['white_seconds_left'] = 0
 
         Timer.objects.create(
             game=game,

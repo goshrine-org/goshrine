@@ -20,6 +20,7 @@ class MatchRequest(models.Model):
     byo_yomi          = models.BooleanField(null=True, default=None, blank=True)
 
 class Territory(models.Model):
+    id    = models.BigAutoField(unique=True, primary_key=True)
     game  = models.OneToOneField('game.Game', related_name='territory', on_delete=models.CASCADE)
     black = ArrayField(models.CharField(max_length=2, blank=False, null=False), blank=True, default=list)
     white = ArrayField(models.CharField(max_length=2, blank=False, null=False), blank=True, default=list)
@@ -54,6 +55,7 @@ class Territory(models.Model):
         return s
 
 class DeadStones(models.Model):
+    id    = models.BigAutoField(unique=True, primary_key=True)
     game  = models.OneToOneField('game.Game', related_name='dead_stones_by_color', on_delete=models.CASCADE)
     black = ArrayField(models.CharField(max_length=2, blank=False, null=False), blank=True, null=False)
     white = ArrayField(models.CharField(max_length=2, blank=False, null=False), blank=True, null=False)
@@ -63,6 +65,7 @@ class Score(models.Model):
         index_together = unique_together = ((
             'white_territory_count', 'black_territory_count', 'white', 'black'
         ),)
+    id                    = models.BigAutoField(unique=True, primary_key=True)
     white_territory_count = models.PositiveSmallIntegerField(null=False)
     black_territory_count = models.PositiveSmallIntegerField(null=False)
     white                 = models.FloatField(null=False)
@@ -101,7 +104,7 @@ class Timer(models.Model):
     byo_yomi_periods   = models.PositiveSmallIntegerField(default=5)
     byo_yomi_seconds   = models.PositiveSmallIntegerField(default=30)
 
-    updated_at         = models.DateTimeField(default=timezone.now, null=True)
+    updated_at         = models.DateTimeField(default=timezone.now)
     black_seconds_left = models.PositiveIntegerField(default=1950)
     white_seconds_left = models.PositiveIntegerField(default=1950)
 
