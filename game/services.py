@@ -189,4 +189,5 @@ def game_handicap_default(board_size, handicap):
         }
     }
 
+    if handicap == 0: return []
     return handicap_coords[board_size][handicap]
