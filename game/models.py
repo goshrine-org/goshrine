@@ -58,30 +58,6 @@ class DeadStones(models.Model):
     black = ArrayField(models.CharField(max_length=2, blank=False, null=False), blank=True, null=False)
     white = ArrayField(models.CharField(max_length=2, blank=False, null=False), blank=True, null=False)
 
-class MoveManager(models.Manager):
-    def moves(self, game):
-        return Move.objects.filter(game=game).order_by('number')
-
-    def sgf(self, game):
-        turns = "BW"
-        sio   = io.StringIO()
-        for i, move in enumerate(self.moves(game)):
-            coord = move.coordinate
-            if coord == 'pass': coord = ''
-            sio.write(f';{turns[(i + (game.handicap != 0)) % 2]}[{coord}]')
-
-        s = sio.getvalue()
-        sio.close()
-        return s
-
-class Move(models.Model):
-    objects    = MoveManager()
-
-    id         = models.BigAutoField(unique=True, primary_key=True)
-    game       = models.ForeignKey('game.Game', related_name='moves', on_delete=models.CASCADE)
-    number     = models.PositiveSmallIntegerField(blank=False, null=False, db_index=True)
-    coordinate = models.CharField(max_length=4, blank=False, null=False)
-
 class Score(models.Model):
     class Meta:
         index_together = unique_together = ((
@@ -125,7 +101,7 @@ class Timer(models.Model):
     byo_yomi_periods   = models.PositiveSmallIntegerField(default=5)
     byo_yomi_seconds   = models.PositiveSmallIntegerField(default=30)
 
-    updated_at         = models.DateTimeField(default=timezone.now)
+    updated_at         = models.DateTimeField(default=timezone.now, null=True)
     black_seconds_left = models.PositiveIntegerField(default=1950)
     white_seconds_left = models.PositiveIntegerField(default=1950)
 
@@ -228,6 +204,7 @@ class Game(models.Model):
     result       = models.CharField(max_length=8, default='', null=False, blank=True, db_index=True)
     handicap     = models.PositiveSmallIntegerField(null=False, default=0)
     handicap_stones = ArrayField(models.CharField(max_length=2, blank=False, null=False), blank=True, null=False)
+    moves        = ArrayField(models.CharField(max_length=2, blank=False, null=False), default=list, blank=True, null=False)
     turn_started_at = models.DateTimeField(default=None, null=True, blank=True)
     room         = models.ForeignKey('rooms.Room', related_name='games', on_delete=models.SET_NULL, null=True, blank=True)
     version      = models.PositiveIntegerField(default=0)
@@ -268,7 +245,10 @@ class Game(models.Model):
                 sio.write(f'[{c}]')
             sio.write('\n')
 
-        sio.write(Move.objects.sgf(self) + '\n')
+        turns = "BW"
+        for i, move in enumerate(self.moves):
+            if move == 'pass': move = ''
+            sio.write(f';{turns[(i + (self.handicap != 0)) % 2]}[{move}]')
 
         try:
             sio.write(self.territory.sgf() + '\n')

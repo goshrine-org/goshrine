@@ -7,7 +7,7 @@ from .forms import MatchCreateForm, MatchProposeForm, MessageForm
 from django.core.validators import RegexValidator, ValidationError
 from users.models import User
 from rooms.models import Room
-from game.models import Game, Move, Territory, MatchRequest, Message, DeadStones, Score
+from game.models import Game, Territory, MatchRequest, Message, DeadStones, Score
 from django.utils import timezone
 from .algorithm import Board as BoardSimulator, InvalidMoveError
 from datetime import timedelta
@@ -585,7 +585,7 @@ def move(request, token, coord):
         except InvalidMoveError as e:
             return json_response({'error': str(e)})
 
-        Move.objects.create(game=game, number=game.move_number, coordinate=coord)
+        game.moves.append(coord)
         game.move_number += 1
         game.version     += 1
         game.last_move    = coord
