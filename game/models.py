@@ -84,7 +84,7 @@ class Message(models.Model):
 
     id         = models.BigAutoField(unique=True, primary_key=True)
     created_at = models.DateTimeField(default=timezone.now, db_index=True)
-    text       = models.CharField(max_length=200)
+    text       = models.CharField(max_length=1048576)
     user       = models.ForeignKey('users.User', on_delete=models.CASCADE, related_name='game_messages')
     game       = models.ForeignKey('game.Game', on_delete=models.CASCADE, related_name='messages')
 

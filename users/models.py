@@ -45,6 +45,7 @@ class User(AbstractBaseUser):
     login              = UsernameField(max_length=28, blank=False, null=False, unique=True, db_index=True)
     email              = CIEmailField(max_length=255, unique=True, db_index=True)
     rank               = models.CharField(max_length=5, default='?')
+    rating             = models.FloatField(blank=True, null=True, default=None)
     avatar_pic         = models.CharField(max_length=256, blank=True, default='')
     created_at         = models.DateTimeField(default=timezone.now)
     user_type          = models.CharField(max_length=16, blank=True, default='user')

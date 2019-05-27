@@ -23,7 +23,7 @@
 
   $(document).ready(function(){
     goshrine.init({user:currentUser});
-    room = new goshrine.Room({"id":1,"name":"Welcome","owner_id":1,"created_at":"2010-11-06T04:17:02Z","updated_at":"2010-11-06T04:17:02Z"});
+    room = new goshrine.Room({"id":{{room.id}},"name":"{{room.name}}"});
 
     // Join the room ahead of time, refresh the room, and when done connect
     // to goshrine.  Doing it this way allows us to get a room list even if
@@ -71,7 +71,7 @@
   </div>
 
   <div style="width: 362px; margin: 0; float: left">
-    <h2>Welcome</h2>
+    <h2>{{room.name}}</h2>
     {% if not user.is_authenticated %}
     <p style="margin:25px;font-style:italic;">
       As a guest, you can view other games in progress, but cannot start your own games.  <a href="/login" class="login">Login</a> to play with other people.

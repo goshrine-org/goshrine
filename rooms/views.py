@@ -1,11 +1,22 @@
-from django.shortcuts import render
+from django.shortcuts import render, get_object_or_404
 from django.http import JsonResponse, Http404
 from django.db.models import F
 from .models import Message, Room, RoomUser
 from users.models import User
+from game.models import Game
 from django.utils.html import escape
 from django.conf import settings
+from common import flash
 import json
+
+def rooms(request, room_id):
+    room = get_object_or_404(Room.objects, id=room_id)
+
+    # Get the 11 most recent games from the database and pass them to render.
+    games = Game.objects.filter(room=room_id).order_by('-started_at')[:11]
+
+    flashes = flash.flashes_get(request)
+    return render(request, 'home/index.html', {'flashes': flashes, 'games': games, 'room': room})
 
 def index(request):
     return render(request, 'rooms/index.html', {})

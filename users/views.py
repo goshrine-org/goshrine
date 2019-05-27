@@ -6,6 +6,7 @@ from common import flash
 from .forms import UserForm, LoginForm, EditForm
 from django.core.validators import RegexValidator, ValidationError
 from game.models import Game
+from django.db.models import F
 import itertools
 
 User = get_user_model()
@@ -53,7 +54,7 @@ def players(request, username):
 
 def index(request):
     if request.method != 'POST':
-        users     = User.objects.all()
+        users     = User.objects.all().order_by(F('rating').desc(nulls_last=True))
         paginator = Paginator(users, 50)
         page      = request.GET.get('page')
         users     = paginator.get_page(page)
