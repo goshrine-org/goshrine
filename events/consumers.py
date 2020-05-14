@@ -64,7 +64,8 @@ class TestConsumer(AsyncJsonWebsocketConsumer):
         fields_as = ('id', 'login', 'rank', 'avatar_pic', 'user_type', 'available')
         fields_q  = ('user__' + field for field in fields_as)
         fields_as = { k: F(v) for (k, v) in zip(fields_as, fields_q) }
-        return RoomUser.objects.filter(room=room).select_related('user').values(*fields_q).distinct().values(**fields_as)
+        qs = RoomUser.objects.filter(room=room).select_related('user').values(*fields_q).distinct().values(**fields_as)
+        return list(qs)
 
     @database_sync_to_async
     def get_room(self, room_id):
@@ -306,7 +307,7 @@ class TestConsumer(AsyncJsonWebsocketConsumer):
 
         # Get the list of users from the database.  This is in a format
         # that can directly be JSON serialized.
-        room_users = list(await self.db_list_room(room))
+        room_users = await self.db_list_room(room)
 
         response = {
             'action': 'room_list',
