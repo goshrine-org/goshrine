@@ -330,7 +330,7 @@ def board_simulate(game, coord=None):
         board.handicap_set(board.coords_from_gs(game.handicap_stones))
 
     # Reconstruct the board until the current move.
-    for move in game.moves.all().order_by('number'):
+    for move in game.moves:
         if move.coordinate == 'pass':
             pos = None
         else:
