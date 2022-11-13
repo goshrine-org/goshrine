@@ -29,6 +29,8 @@ APPEND_SLASH  = False
 
 ALLOWED_HOSTS = ["127.0.0.1", "goshrine.org"]
 
+CSRF_TRUSTED_ORIGINS = ["https://goshrine.org"]
+
 # Application definition
 
 INSTALLED_APPS = [
